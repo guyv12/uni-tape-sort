@@ -8,6 +8,7 @@
 #include <queue>
 
 #include "record.hpp"
+#include "file-handler.hpp"
 
 
 class Tape
@@ -20,10 +21,8 @@ class Tape
 
     private:
 
-        long long int record_count;
-        
-        std::queue<Record> buffer;
-        
+        FileHandler file_handler;
 };
+
 
 #endif //tape_hpp

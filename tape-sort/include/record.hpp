@@ -3,8 +3,7 @@
 #ifndef record_hpp
 #define record_hpp
 
-#include <string>
-#include <iostream>
+#include <filesystem>
 
 class Record
 {
@@ -23,7 +22,7 @@ class Record
 };
 
 
-void generate_db(std::string filename, long long int records);
+void generate_db(const std::filesystem::path& filename, long long int records);
 
 
 #endif //record_hpp

@@ -1,6 +1,5 @@
 #include "record.hpp"
 
-#include <cstdlib>
 #include <cmath>
 #include <random>
 
@@ -16,16 +15,14 @@ Record::Record()
 
 
 long double Record::get_value() { return mass * pow(velocity, 2); }
-
 double Record::m() { return mass; }
-
 double Record::v() { return velocity; }
 
 
-void generate_db(std::string filename, long long int records)
+void generate_db(const std::filesystem::path& filename, long long int records)
 {
     FILE *db = fopen(filename.c_str(), "wb");
-    if (!db) perror("Can't open db file"); return;
+    if (!db) perror("Record: Can't open db file"); return;
 
     for (long long int i = 0; i < records; i++)
     {
