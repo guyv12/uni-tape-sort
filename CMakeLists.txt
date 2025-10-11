@@ -5,7 +5,8 @@ project(TapeSort VERSION 0.5 LANGUAGES CXX)
 add_executable(
     tape-sort
     tape-sort/main.cpp
-    tape-sort/src/placeholder.cpp
+    tape-sort/src/record.cpp
+    tape-sort/src/tape.cpp
 )
 
 target_include_directories(

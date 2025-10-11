@@ -1,5 +1,8 @@
 #include <cstdio>
 
+#include "tape.hpp"
+
+
 int main(void)
 {
     printf("\n\n");
