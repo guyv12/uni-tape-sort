@@ -1,6 +1,8 @@
 #include <cstdio>
 
-#include "tape.hpp"
+#include "record.hpp"
+#include "file-handler.hpp"
+#include "sort.hpp"
 
 
 int main(void)
@@ -16,7 +18,7 @@ int main(void)
 
     printf("%lld, %d\n", file_handler.get_writes(), file_handler.get_blkcount());
     
-    std::array<char, BLOCK_SIZE> out;
+    std::array<uint8_t, DISK_PAGE_SIZE> out;
     file_handler.read(out, 1);
 
     printf("%lld\n", file_handler.get_reads());

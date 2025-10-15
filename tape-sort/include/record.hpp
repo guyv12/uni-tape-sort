@@ -5,15 +5,18 @@
 
 #include <filesystem>
 
+
 class Record
 {
     public:
 
         Record();
+        Record(double mass, double velocity);
 
-        long double get_value();
-        double m();
-        double v();
+        int compare(const Record& other) const;
+        long double get_value() const;
+        double m() const;
+        double v() const;
 
     private:
 
@@ -23,6 +26,6 @@ class Record
 
 
 void generate_db(const std::filesystem::path& filename, long long int records);
-
+void input_db(const std::filesystem::path& file_name);
 
 #endif //record_hpp

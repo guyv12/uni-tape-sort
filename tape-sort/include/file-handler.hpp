@@ -3,10 +3,10 @@
 #ifndef file_handler_hpp
 #define file_handler_hpp
 
+#include "consts.hpp"
+#include <cstdint>
 #include <filesystem>
 #include <array>
-
-#define BLOCK_SIZE 512 // size of the handled blocks in bytes
 
 
 class FileHandler
@@ -15,8 +15,8 @@ class FileHandler
 
         FileHandler(const std::filesystem::path& file_path);
 
-        void read(std::array<char, BLOCK_SIZE>& out, size_t block_idx);
-        void write(char data);
+        void read(std::array<uint8_t, DISK_PAGE_SIZE>& out, size_t block_idx);
+        void write(uint8_t data);
         void flush();
 
         size_t get_blkcount();
@@ -24,11 +24,13 @@ class FileHandler
         unsigned long long int get_reads();
         unsigned long long int get_writes();
 
+        void print();
+
     private:
         
         std::filesystem::path file_path;
 
-        std::array<char, BLOCK_SIZE> block_buffer;
+        std::array<uint8_t, DISK_PAGE_SIZE> block_buffer;
         size_t buffer_idx;
 
         size_t block_counter;

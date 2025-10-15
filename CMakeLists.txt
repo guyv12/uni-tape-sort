@@ -7,7 +7,7 @@ add_executable(
     tape-sort/main.cpp
     tape-sort/src/record.cpp
     tape-sort/src/file-handler.cpp
-    tape-sort/src/tape.cpp
+    tape-sort/src/sort.cpp
 )
 
 target_include_directories(
