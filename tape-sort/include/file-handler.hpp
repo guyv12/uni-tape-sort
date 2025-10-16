@@ -15,12 +15,10 @@ class FileHandler
 
         FileHandler(const std::filesystem::path& file_path);
 
-        void read(std::array<uint8_t, DISK_PAGE_SIZE>& out, size_t block_idx);
-        void write(uint8_t data);
-        void flush();
+        bool read_block(std::array<uint8_t, DISK_PAGE_SIZE>& out, const size_t block_idx);
+        bool write_block(const std::array<uint8_t, DISK_PAGE_SIZE>& data, size_t block_idx);
 
         size_t get_blkcount();
-
         unsigned long long int get_reads();
         unsigned long long int get_writes();
 
@@ -30,10 +28,7 @@ class FileHandler
         
         std::filesystem::path file_path;
 
-        std::array<uint8_t, DISK_PAGE_SIZE> block_buffer;
-        size_t buffer_idx;
-
-        size_t block_counter;
+        size_t blk_counter;
 
         unsigned long long int r_events;
         unsigned long long int w_events;

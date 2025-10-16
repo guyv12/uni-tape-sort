@@ -10,8 +10,7 @@ void sort(std::filesystem::path& file_path)
     std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT> buffers;
 
     create_runs(file_handler, buffers);
-
-    
+    merge(file_handler, buffers);
 }
 
 
@@ -25,41 +24,89 @@ void create_runs(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_
 
         // read data into the buffers
         for (size_t i = 0; i < blks_to_read; i++)
-            file_handler.read(buffers[i], cur_blk + i);
+            if (!file_handler.read_block(buffers[i], cur_blk + i)) break;
 
-        // sort each buffer
-        for (size_t i = 0; i < blks_to_read; i++)
-            sort_run(buffers[i]);
+        sort_runs(buffers, blks_to_read);
 
         // write sorted series to the file
         for(size_t i = 0; i < blks_to_read; i++)
-        {
-            for (uint8_t byte : buffers[i])
-                file_handler.write(byte);
-        }
+            if (!file_handler.write_block(buffers[i], cur_blk + i)) break;
 
         cur_blk += blks_to_read;
     }
+}
 
-    // to ensure all of the data is written to the file
-    file_handler.flush();
+void sort_runs(std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, const size_t buff_to_sort)
+{
+    // multithreaded?
+
+    // sort each buffer
+    for (size_t i = 0; i < buff_to_sort; i++)
+        sort_run(buffers[i]);
 }
 
 void sort_run(std::array<uint8_t, DISK_PAGE_SIZE>& buffer)
 {
-    // TODO HeapSort
-
-    // sorting placeholder
-    Record* records = reinterpret_cast<Record*>(buffer.data());
-    size_t record_count = DISK_PAGE_SIZE / sizeof(Record);
-
-    std::sort(records, records + record_count,
-              [](const Record& a, const Record& b) {
-                  return a.get_value() < b.get_value();
-              });
+    // build record files
+    // quick_sort(NULL, 0, DISK_PAGE_SIZE - 1);
 }
 
-void merge()
-{
 
+void merge(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers)
+{
+    size_t cur_blk = 0, blk_count = file_handler.get_blkcount();
+    
+    // we use nth buffer for storing the merge result
+    std::array<uint8_t, DISK_PAGE_SIZE> writer_buffer;
+
+    while (cur_blk < blk_count)
+    {
+        // we fill n - 1 buffers with data, n is for result
+        size_t blks_to_read = std::min((size_t)BUFFER_COUNT - 1, blk_count - cur_blk);
+
+        // read data into the buffers
+        for (size_t i = 0; i < blks_to_read; i++)
+            if (!file_handler.read_block(buffers[i], cur_blk + i)) break;
+
+        merge_runs(file_handler, buffers, blks_to_read);
+
+        cur_blk += blks_to_read;
+    }
+}
+
+void merge_runs(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, const size_t buff_to_sort)
+{
+    // build min heap
+    // write min into the last buffer
+    // rebuild with a new value
+}
+
+
+
+// ------ miscellanous ------
+
+void quick_sort(Record *arr, int l, int r)
+{
+    if (l >= r) return; // recursion check
+
+    int q = partition(arr, l, r);
+    quick_sort(arr, l, q);
+    quick_sort(arr, q + 1, r);
+}
+
+int partition(Record *arr, int l, int r)
+{
+    long double pivot = arr[l].get_value();
+
+    while (true)
+    {
+        while (arr[l].get_value() < pivot) l++;
+        while (arr[r].get_value() > pivot) r--;
+
+        if (l <  r) 
+            std::swap(arr[l++], arr[r--]);
+
+        else
+            return r;
+    }
 }
