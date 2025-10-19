@@ -4,9 +4,7 @@
 #define sort_hpp
 
 #include "consts.hpp"
-#include "record.hpp"
 #include "file-handler.hpp"
-#include <filesystem>
 
 
 void sort(std::filesystem::path& file_path);
@@ -17,12 +15,11 @@ void merge(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_S
 
 // individual file sort
 void sort_runs(std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, const size_t buff_to_sort);
-void sort_run(std::array<uint8_t, DISK_PAGE_SIZE>& buffer);
 
 // buffer merging
 void merge_runs(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, const size_t buff_to_sort);
 
-void quick_sort(Record *arr, int l, int r);
-int partition(Record *arr, int l, int r);
+void quick_sort(uint8_t *arr, int l, int r);
+int partition(uint8_t *arr, int l, int r);
 
 #endif //sort_hpp

@@ -34,7 +34,7 @@ double Record::v() const { return velocity; }
 void generate_db(const std::filesystem::path& file_name, long long int records)
 {
     FILE *db = fopen(file_name.c_str(), "wb");
-    if (!db) perror("Record: Can't open db file"); return;
+    if (!db) { perror("Record: Can't open db file"); return; }
 
     for (long long int i = 0; i < records; i++)
     {
@@ -53,13 +53,13 @@ void generate_db(const std::filesystem::path& file_name, long long int records)
 void input_db(const std::filesystem::path& file_name)
 {
     FILE *db = fopen(file_name.c_str(), "wb");
-    if (!db) perror("Record: Can't open db file"); return;
+    if (!db) { perror("Record: Can't open db file"); return; }
+
+    printf("Input record data in fp format divided by a whitespace (eg. 0.255 3.14)\nExit: q\n\n");
 
     bool quit = false;
     while(!quit)
     {
-        printf("Input record data in fp format (eg. 0.255)\n exit: q\n \n");
-
         std::string input;
         std::getline(std::cin, input);
 

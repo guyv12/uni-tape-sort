@@ -1,7 +1,9 @@
 #include "sort.hpp"
 
 #include <cstdint>
+#include <cmath>
 #include <array>
+#include <vector>
 #include <algorithm>
 
 void sort(std::filesystem::path& file_path)
@@ -40,15 +42,8 @@ void sort_runs(std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& bu
 {
     // multithreaded?
 
-    // sort each buffer
     for (size_t i = 0; i < buff_to_sort; i++)
-        sort_run(buffers[i]);
-}
-
-void sort_run(std::array<uint8_t, DISK_PAGE_SIZE>& buffer)
-{
-    // build record files
-    // quick_sort(NULL, 0, DISK_PAGE_SIZE - 1);
+        quick_sort(buffers[i].data(), 0, DISK_PAGE_SIZE - 1);
 }
 
 
@@ -74,9 +69,24 @@ void merge(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_S
     }
 }
 
-void merge_runs(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, const size_t buff_to_sort)
+void merge_runs(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, const size_t buff_to_merge)
 {
-    // build min heap
+    // double *double_arr = reinterpret_cast<double*>(buffers[i].data());
+    // long double val = double_arr[0] * pow(double_arr[1], 2);
+
+    // TODO build min heap
+    struct BufferCursor 
+    {
+        size_t buffer_idx;
+        size_t record_idx;
+    };
+
+    std::vector<BufferCursor> cursors;
+    for (size_t i = 0; i < buff_to_merge - 1; i++)
+        cursors.push_back({i, 0});
+
+    std::make_heap(cursors.begin(), cursors.end());
+
     // write min into the last buffer
     // rebuild with a new value
 }
@@ -85,7 +95,7 @@ void merge_runs(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_P
 
 // ------ miscellanous ------
 
-void quick_sort(Record *arr, int l, int r)
+void quick_sort(uint8_t *arr, int l, int r)
 {
     if (l >= r) return; // recursion check
 
@@ -94,17 +104,27 @@ void quick_sort(Record *arr, int l, int r)
     quick_sort(arr, q + 1, r);
 }
 
-int partition(Record *arr, int l, int r)
+int partition(uint8_t *arr, int l, int r)
 {
-    long double pivot = arr[l].get_value();
+    double *double_arr = reinterpret_cast<double*>(arr);
+    long double pivot = double_arr[l] * pow(double_arr[l + 1], 2);
+
 
     while (true)
     {
-        while (arr[l].get_value() < pivot) l++;
-        while (arr[r].get_value() > pivot) r--;
+        while (double_arr[l] * pow(double_arr[l + 1], 2) < pivot)
+            l += 2; // record is represented by 2 doubles
+
+        while (double_arr[r] * pow(double_arr[r + 1], 2) > pivot)
+            r -= 2;
 
         if (l <  r) 
-            std::swap(arr[l++], arr[r--]);
+        {
+            std::swap(double_arr[l], double_arr[r]); // swap m
+            std::swap(double_arr[l + 1], double_arr[r + 1]); // swap m
+
+            l += 2; r -=2;
+        }
 
         else
             return r;
