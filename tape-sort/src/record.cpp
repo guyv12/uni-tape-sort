@@ -9,11 +9,10 @@ Record::Record()
     static std::default_random_engine eg;
     static std::uniform_real_distribution<> dis(0, 100);
 
-    mass = dis(eg);
-    velocity = dis(eg);
+    mass = dis(eg); velocity = dis(eg);
 }
 
-Record::Record(double mass, double velocity) : mass(mass), velocity(velocity) { }
+Record::Record(double m, double v) : mass(m), velocity(v) { }
 
 
 int Record::compare(const Record& other) const
@@ -27,6 +26,7 @@ int Record::compare(const Record& other) const
 }
 
 long double Record::get_value() const { return mass * pow(velocity, 2); }
+long double Record::get_value(double m, double v) { return m * pow(v, 2); }
 double Record::m() const { return mass; }
 double Record::v() const { return velocity; }
 

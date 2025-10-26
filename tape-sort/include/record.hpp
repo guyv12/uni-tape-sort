@@ -11,10 +11,13 @@ class Record
     public:
 
         Record();
-        Record(double mass, double velocity);
+        Record(double m, double v);
 
         int compare(const Record& other) const;
+
         long double get_value() const;
+        static long double get_value(double m, double v);
+        
         double m() const;
         double v() const;
 

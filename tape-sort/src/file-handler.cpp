@@ -6,10 +6,10 @@ FileHandler::FileHandler(const std::filesystem::path& file_path) : file_path(fil
     if (!file_path.parent_path().empty())
         std::filesystem::create_directories(file_path.parent_path());
 
-    FILE *file = std::fopen(file_path.c_str(), "ab");
+    FILE *file = fopen(file_path.c_str(), "ab");
     if (!file) { perror("File Handler: Can't open/create a FileHandler file"); return; }
 
-    fseek(file, 0, SEEK_END); blk_counter = ftell(file) / DISK_PAGE_SIZE;
+    fseek(file, 0, SEEK_END); blk_counter = -(-ftell(file) / RECORD_BYTES); // round up
     fclose(file);
 
     r_events = 0; w_events = 0;
@@ -19,15 +19,15 @@ FileHandler::FileHandler(const std::filesystem::path& file_path) : file_path(fil
 bool FileHandler::read_block(std::array<uint8_t, DISK_PAGE_SIZE>& out, const size_t block_idx)
 /* @return true on success, false on failure */
 {
-    out.fill('\0');
+    out.fill('\0'); // 0 padding / clearing if not present
 
     if (block_idx + 1 > blk_counter) return false; // if the idx not present
     
     FILE *file = fopen(file_path.c_str(), "rb");
     if (!file) { perror("File Handler: Can't open FileHandler file for read_block"); return false; }
 
-    fseek(file, DISK_PAGE_SIZE * block_idx, SEEK_SET);
-    fread(out.data(), 1, DISK_PAGE_SIZE, file);
+    fseek(file, RECORD_BYTES * block_idx, SEEK_SET);
+    fread(out.data(), 1, RECORD_BYTES, file);
     fclose(file);
 
     r_events++;
@@ -42,8 +42,8 @@ bool FileHandler::write_block(const std::array<uint8_t, DISK_PAGE_SIZE>& data, s
 
     if (block_idx + 1 > blk_counter)  block_idx = blk_counter++; // if idx not present, append at the end
 
-    fseek(file, DISK_PAGE_SIZE * block_idx, SEEK_SET);
-    fwrite(data.data(), 1, DISK_PAGE_SIZE, file);
+    fseek(file, RECORD_BYTES * block_idx, SEEK_SET);
+    fwrite(data.data(), 1, RECORD_BYTES, file);
     fclose(file);
 
     w_events++;

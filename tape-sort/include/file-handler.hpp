@@ -26,7 +26,7 @@ class FileHandler
 
     private:
         
-        std::filesystem::path file_path;
+        const std::filesystem::path file_path;
 
         size_t blk_counter;
 

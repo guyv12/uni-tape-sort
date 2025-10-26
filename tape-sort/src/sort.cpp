@@ -28,7 +28,7 @@ void create_runs(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_
         for (size_t i = 0; i < blks_to_read; i++)
             if (!file_handler.read_block(buffers[i], cur_blk + i)) break;
 
-        sort_runs(buffers, blks_to_read);
+        quick_sort(buffers, 0, (BUFFER_COUNT * BLOCKING_FACTOR) - 1);
 
         // write sorted series to the file
         for(size_t i = 0; i < blks_to_read; i++)
@@ -36,14 +36,6 @@ void create_runs(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_
 
         cur_blk += blks_to_read;
     }
-}
-
-void sort_runs(std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, const size_t buff_to_sort)
-{
-    // multithreaded?
-
-    for (size_t i = 0; i < buff_to_sort; i++)
-        quick_sort(buffers[i].data(), 0, DISK_PAGE_SIZE - 1);
 }
 
 
@@ -69,64 +61,85 @@ void merge(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_S
     }
 }
 
-void merge_runs(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, const size_t buff_to_merge)
+
+// ------ individual sort ------
+
+long double get_local(std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, int global_ptr)
 {
-    // double *double_arr = reinterpret_cast<double*>(buffers[i].data());
-    // long double val = double_arr[0] * pow(double_arr[1], 2);
+    // * 2 because 1 record = 2 doubles
+    int ptr_buffer = global_ptr / BLOCKING_FACTOR, local_ptr = 2 * (global_ptr % BLOCKING_FACTOR);
 
-    // TODO build min heap
-    struct BufferCursor 
-    {
-        size_t buffer_idx;
-        size_t record_idx;
-    };
+    double *buffer_cast = reinterpret_cast<double *>(buffers[ptr_buffer].data());
 
-    std::vector<BufferCursor> cursors;
-    for (size_t i = 0; i < buff_to_merge - 1; i++)
-        cursors.push_back({i, 0});
+    double m = buffer_cast[local_ptr], v = buffer_cast[local_ptr + 1]; // a whole record (2 doubles) is guaranteed to be in 1 buffer
+    return Record::get_value(m, v);
+}
 
-    std::make_heap(cursors.begin(), cursors.end());
+void swap(std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, int global_l, int global_r)
+{
+    // * 2 because 1 record = 2 doubles
+    int l_buffer = global_l / BLOCKING_FACTOR, l_ptr = 2 * (global_l % BLOCKING_FACTOR);
+    int r_buffer = global_r / BLOCKING_FACTOR, r_ptr = 2 * (global_r % BLOCKING_FACTOR);
 
-    // write min into the last buffer
-    // rebuild with a new value
+    double *l_cast = reinterpret_cast<double *>(buffers[l_buffer].data());
+    double *r_cast = reinterpret_cast<double *>(buffers[r_buffer].data());
+
+    std::swap(l_cast[l_ptr], r_cast[r_ptr]); // swap m
+    std::swap(l_cast[l_ptr + 1], r_cast[r_ptr + 1]); // swap v
 }
 
 
-
-// ------ miscellanous ------
-
-void quick_sort(uint8_t *arr, int l, int r)
+void quick_sort(std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, int global_l, int global_r)
 {
-    if (l >= r) return; // recursion check
+    if (global_l >= global_r) return; // recursion check
 
-    int q = partition(arr, l, r);
-    quick_sort(arr, l, q);
-    quick_sort(arr, q + 1, r);
+    int q = partition(buffers, global_l, global_r);
+    quick_sort(buffers, global_l, q);
+    quick_sort(buffers, q + 1, global_r);
 }
 
-int partition(uint8_t *arr, int l, int r)
+int partition(std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, int global_l, int global_r)
 {
-    double *double_arr = reinterpret_cast<double*>(arr);
-    long double pivot = double_arr[l] * pow(double_arr[l + 1], 2);
+    long double pivot = get_local(buffers, global_l);
 
 
     while (true)
     {
-        while (double_arr[l] * pow(double_arr[l + 1], 2) < pivot)
-            l += 2; // record is represented by 2 doubles
+        while (get_local(buffers, global_l) < pivot)
+            global_l++;
 
-        while (double_arr[r] * pow(double_arr[r + 1], 2) > pivot)
-            r -= 2;
+        while (get_local(buffers, global_r) > pivot)
+            global_r--;
 
-        if (l <  r) 
-        {
-            std::swap(double_arr[l], double_arr[r]); // swap m
-            std::swap(double_arr[l + 1], double_arr[r + 1]); // swap m
-
-            l += 2; r -=2;
-        }
+        if (global_l <  global_r) 
+            swap(buffers, global_l++, global_r--);
 
         else
-            return r;
+            return global_r;
     }
+}
+
+
+//----- individual merge ----
+
+void merge_runs(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, const size_t buff_to_merge)
+{
+    // // double *double_arr = reinterpret_cast<double*>(buffers[i].data());
+    // // long double val = double_arr[0] * pow(double_arr[1], 2);
+
+    // // TODO build min heap
+    // struct BufferCursor 
+    // {
+    //     size_t buffer_idx;
+    //     size_t record_idx;
+    // };
+
+    // std::vector<BufferCursor> cursors;
+    // for (size_t i = 0; i < buff_to_merge - 1; i++)
+    //     cursors.push_back({i, 0});
+
+    // std::make_heap(cursors.begin(), cursors.end());
+
+    // // write min into the last buffer
+    // // rebuild with a new value
 }
