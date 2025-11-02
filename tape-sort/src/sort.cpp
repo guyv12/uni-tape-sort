@@ -5,6 +5,7 @@
 #include <cmath>
 #include <array>
 #include <queue>
+#include <algorithm>
 
 
 void sort(std::filesystem::path& file_path)
@@ -45,7 +46,19 @@ void create_runs(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_
 
 void merge(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, RunInfo& run_info)
 {
-    
+    FileHandler tmp("tmp");
+    bool toggle = false;
+
+    while (run_info.run_count > 1)
+    {
+        FileHandler& in  = toggle ? tmp : file_handler;
+        FileHandler& out = toggle ? file_handler : tmp;
+
+        merge_runs(in, out, buffers, run_info);
+
+        toggle = !toggle;
+        run_info.run_count -= std::min(run_info.run_count, static_cast<size_t>(BUFFER_COUNT));
+    }
 }
 
 
@@ -109,57 +122,79 @@ int partition(std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buf
 
 //----- individual merge ----
 
-// void merge_runs(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, RunInfo& run_info)
-// {
-//     // read into buffers, and setup its pointers
-//     struct val_ptr 
-//     {
-//         double m;
-//         double v;
+void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, RunInfo& run_info)
+{
+    // --- STRUCT DEF ---
 
-//         int buffer;
-//     };
+    struct val_ptr 
+    {
+        double m;
+        double v;
 
-//     // these hold offsets in bytes not records
-//     std::array<int, BUFFER_COUNT - 1> buff_pointers = { 0 }; // we use n - 1 buffers for storing the merge data
-//     int output_ptr = 0;
+        int buffer;
+    };
 
-//     FileHandler tmp("tmp-db");
+    struct RunCursor 
+    {
+        size_t run_start;       // starting block index
+        size_t cur_block;       // current block index
+        size_t buffer_offset;   // offset (in bytes not records!) within the current buffer
+    };
 
-//     // read data into the buffers
-//     for (int i = 0; i < run_info.run_count; i++)
-//         file_handler.read_block(buffers[i], i * run_info.run_size);
+    std::array<RunCursor, BUFFER_COUNT - 1> cursors;
+    size_t output_ptr = 0;
 
-//     std::priority_queue<val_ptr> heap; // key = Record::get_value(m, v)? 
+    FileHandler tmp("tmp-db");
 
-//     // convert the data to store in the heap and store in the heap
-//     for (int i = 0; i < run_info.run_count; i++)
-//     {
-//         double *double_arr = reinterpret_cast<double *>(buffers[i].data());
-//         heap.push(val_ptr{ double_arr[0], double_arr[1], i });
-//     }
-
-//     while(!heap.empty())
-//     {
-//         val_ptr min = heap.top(); heap.pop();
-
-//         // move the smallest record to the output buffer
-//         memcpy(buffers[BUFFER_COUNT - 1].data() + output_ptr, buffers[min.buffer].data() + buff_pointers[min.buffer], RECORD_SIZE);
-//         output_ptr += RECORD_SIZE; buff_pointers[min.buffer] += RECORD_SIZE;
-
-//         if (output_ptr + RECORD_SIZE >= DISK_PAGE_SIZE)
-//         {
-//             // write the buffer to the file
-//             output_ptr = 0;
-//         }
+    // create min heap
+    auto cmp = [](const val_ptr& a, const val_ptr& b) 
+    {
+        return Record::get_value(a.m, a.v) > Record::get_value(b.m, b.v);
+    };
+    std::priority_queue<val_ptr, std::vector<val_ptr>, decltype(cmp)> heap(cmp);
 
 
-//         if (buff_pointers[min.buffer] + 1 < BLOCKING_FACTOR)
-//         {
-//             // read data again
-//             buff_pointers[min.buffer] = 0;
-//         }
+    // --- FIRST HEAP POPULATION ---
 
-//         //heap.push(val_ptr{ })
-//     }
-// }
+    // read into buffers, and setup its pointers
+    for (int i = 0; i < std::min(run_info.run_count, static_cast<size_t>(BUFFER_COUNT)); i++)
+    {
+        cursors[i].run_start = i * run_info.run_size; cursors[i].cur_block = cursors[i].run_start;
+        cursors[i].buffer_offset = 0;
+        input.read_block(buffers[i], cursors[i].run_start);
+    }
+
+    // convert the data to store in the heap and store in the heap
+    for (int i = 0; i < run_info.run_count; i++)
+    {
+        double *double_arr = reinterpret_cast<double *>(buffers[i].data());
+        heap.push(val_ptr{ double_arr[0], double_arr[1], i });
+    }
+
+    // -- MAIN MERGE LOOP ---
+
+    while(!heap.empty())
+    {
+        val_ptr min = heap.top(); heap.pop();
+
+        // move the smallest record to the output buffer
+        memcpy(buffers[BUFFER_COUNT - 1].data() + output_ptr, buffers[min.buffer].data() + cursors[min.buffer].buffer_offset, RECORD_SIZE);
+        output_ptr += RECORD_SIZE; cursors[min.buffer].buffer_offset += RECORD_SIZE;
+
+        if (output_ptr + RECORD_SIZE >= DISK_PAGE_SIZE)
+        {
+            output.write_block(buffers[BUFFER_COUNT - 1], output.get_blkcount());
+            output_ptr = 0;
+        }
+
+
+        if (cursors[min.buffer].buffer_offset < BLOCKING_FACTOR &&
+            ++cursors[min.buffer].cur_block - cursors[min.buffer].run_start <= run_info.run_size)
+        {
+            input.read_block(buffers[min.buffer], cursors[min.buffer].cur_block);
+            cursors[min.buffer].buffer_offset = 0;
+            double *double_arr = reinterpret_cast<double *>(buffers[min.buffer].data());
+            heap.push(val_ptr{ double_arr[0], double_arr[1], min.buffer });        
+        }
+    }
+}
