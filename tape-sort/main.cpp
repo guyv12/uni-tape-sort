@@ -8,28 +8,36 @@
 int main(void)
 {
     generate_db("database-file", 1'000);
+    FileHandler file_handler("database-file");
 
-    FileHandler file_handler("tape-file");
-
-    std::array<uint8_t, DISK_PAGE_SIZE> arr;
+    std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT> buffers;
     
-    arr.fill('1');
-    file_handler.write_block(arr, 0);
+    for (int b = 0; b < BUFFER_COUNT; ++b) 
+    {
+        double* arr = reinterpret_cast<double*>(buffers[b].data());
 
-    arr.fill('2');
-    file_handler.write_block(arr, 1);
-
-    arr.fill('3');
-    file_handler.write_block(arr, 1);
-
-    printf("%lld, %d\n", file_handler.get_writes(), file_handler.get_blkcount());
+        for (int i = 0; i < BLOCKING_FACTOR; i++) 
+        {
+            double m = static_cast<double>(b);       // e.g. buffer index
+            double v = static_cast<double>(i);       // record index
+            arr[i * 2]     = m;
+            arr[i * 2 + 1] = v;
+        }
+    }
     
-    std::array<uint8_t, DISK_PAGE_SIZE> out;
-    file_handler.read_block(out, 1);
+    quick_sort(buffers, 0, (BUFFER_COUNT * BLOCKING_FACTOR) - 1);
 
-    printf("%lld\n", file_handler.get_reads());
-    for (int i = 0; i < 512; i++)
-        printf("%c", out[i]);
+    for (int i = 0; i < BUFFER_COUNT; i++)
+    {
+        double* arr = reinterpret_cast<double*>(buffers[i].data());
+
+        for (int j = 0; j < BLOCKING_FACTOR; j++)
+        {
+            printf("%0.2Lf ", Record::get_value(arr[2 * j], arr[2 * j + 1]));
+        }
+        printf("\n");
+    }
+
 
     return 0;
 }

@@ -7,12 +7,20 @@
 #include "record.hpp"
 #include "file-handler.hpp"
 
+typedef struct RunInfo RunInfo;
+
+struct RunInfo // run size will always be divisible by b -> as they are made from at least 1 buffer
+{
+    size_t run_count; // how many runs there are in total
+    size_t run_size; // how many disk pages is each individual run (the last one can be less than that)
+};
+
 
 void sort(std::filesystem::path& file_path);
 
 // algorithm
-void create_runs(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers);
-void merge(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers);
+void create_runs(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, RunInfo& run_info);
+void merge(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, RunInfo& run_info);
 
 
 // individual file sort
@@ -24,6 +32,6 @@ int partition(std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buf
 
 
 // buffer merging
-void merge_runs(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, const size_t buff_to_sort);
+void merge_runs(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, RunInfo& run_info);
 
 #endif //sort_hpp
