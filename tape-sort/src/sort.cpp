@@ -173,28 +173,40 @@ void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<
 
     // -- MAIN MERGE LOOP ---
 
-    while(!heap.empty())
+    size_t cur_blk = 0, blk_count = input.get_blkcount();
+
+    while (cur_blk < blk_count)
     {
-        val_ptr min = heap.top(); heap.pop();
+        // size_t blks_to_read = ...
 
-        // move the smallest record to the output buffer
-        memcpy(buffers[BUFFER_COUNT - 1].data() + output_ptr, buffers[min.buffer].data() + cursors[min.buffer].buffer_offset, RECORD_SIZE);
-        output_ptr += RECORD_SIZE; cursors[min.buffer].buffer_offset += RECORD_SIZE;
+        // FIRST HEAP POPULATION HERE
 
-        if (output_ptr + RECORD_SIZE >= DISK_PAGE_SIZE)
+        while(!heap.empty())
         {
-            output.write_block(buffers[BUFFER_COUNT - 1], output.get_blkcount());
-            output_ptr = 0;
+            val_ptr min = heap.top(); heap.pop();
+
+            // move the smallest record to the output buffer
+            memcpy(buffers[BUFFER_COUNT - 1].data() + output_ptr, buffers[min.buffer].data() + cursors[min.buffer].buffer_offset, RECORD_SIZE);
+            output_ptr += RECORD_SIZE; cursors[min.buffer].buffer_offset += RECORD_SIZE;
+
+            if (output_ptr + RECORD_SIZE >= DISK_PAGE_SIZE)
+            {
+                output.write_block(buffers[BUFFER_COUNT - 1], output.get_blkcount());
+                output_ptr = 0;
+            }
+
+
+            if (cursors[min.buffer].buffer_offset < BLOCKING_FACTOR &&
+                ++cursors[min.buffer].cur_block - cursors[min.buffer].run_start <= run_info.run_size)
+            {
+                input.read_block(buffers[min.buffer], cursors[min.buffer].cur_block);
+                cursors[min.buffer].buffer_offset = 0;
+                double *double_arr = reinterpret_cast<double *>(buffers[min.buffer].data());
+                heap.push(val_ptr{ double_arr[0], double_arr[1], min.buffer });        
+            }
         }
 
-
-        if (cursors[min.buffer].buffer_offset < BLOCKING_FACTOR &&
-            ++cursors[min.buffer].cur_block - cursors[min.buffer].run_start <= run_info.run_size)
-        {
-            input.read_block(buffers[min.buffer], cursors[min.buffer].cur_block);
-            cursors[min.buffer].buffer_offset = 0;
-            double *double_arr = reinterpret_cast<double *>(buffers[min.buffer].data());
-            heap.push(val_ptr{ double_arr[0], double_arr[1], min.buffer });        
-        }
+        // cur_blk += blks_to_read;
+        // run_info.run_count -= ...?;
     }
 }
