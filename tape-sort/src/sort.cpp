@@ -8,7 +8,7 @@
 #include <algorithm>
 
 
-void sort(std::filesystem::path& file_path)
+void sort(const std::filesystem::path& file_path)
 {
     FileHandler file_handler(file_path);
     std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT> buffers;
@@ -154,32 +154,33 @@ void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<
     std::priority_queue<val_ptr, std::vector<val_ptr>, decltype(cmp)> heap(cmp);
 
 
-    // --- FIRST HEAP POPULATION ---
-
-    // read into buffers, and setup its pointers
-    for (int i = 0; i < std::min(run_info.run_count, static_cast<size_t>(BUFFER_COUNT)); i++)
-    {
-        cursors[i].run_start = i * run_info.run_size; cursors[i].cur_block = cursors[i].run_start;
-        cursors[i].buffer_offset = 0;
-        input.read_block(buffers[i], cursors[i].run_start);
-    }
-
-    // convert the data to store in the heap and store in the heap
-    for (int i = 0; i < run_info.run_count; i++)
-    {
-        double *double_arr = reinterpret_cast<double *>(buffers[i].data());
-        heap.push(val_ptr{ double_arr[0], double_arr[1], i });
-    }
-
     // -- MAIN MERGE LOOP ---
 
     size_t cur_blk = 0, blk_count = input.get_blkcount();
 
     while (cur_blk < blk_count)
     {
-        // size_t blks_to_read = ...
+        // --- INITIAL HEAP POPULATION ---
 
-        // FIRST HEAP POPULATION HERE
+        size_t merged_runs = std::min(run_info.run_count, static_cast<size_t>(BUFFER_COUNT));
+
+        // read into buffers, and setup its pointers
+        for (int i = 0; i < merged_runs; i++)
+        {
+            cursors[i].run_start = i * run_info.run_size; cursors[i].cur_block = cursors[i].run_start;
+            cursors[i].buffer_offset = 0;
+            input.read_block(buffers[i], cursors[i].run_start);
+        }
+
+        // convert the data to store in the heap, and store in the heap
+        for (int i = 0; i < merged_runs; i++)
+        {
+            double *double_arr = reinterpret_cast<double *>(buffers[i].data());
+            heap.push(val_ptr{ double_arr[0], double_arr[1], i });
+        }
+
+
+        // -- MERGE LOOP ---
 
         while(!heap.empty())
         {
@@ -206,7 +207,43 @@ void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<
             }
         }
 
-        // cur_blk += blks_to_read;
-        // run_info.run_count -= ...?;
+        cur_blk += merged_runs * run_info.run_size;
+        run_info.run_count -= merged_runs;
     }
+}
+
+
+//----- helper ----
+
+void check_if_sorted(const std::filesystem::path& file_path)
+{
+    bool sorted = true;
+
+    FILE *checked_file = fopen(file_path.c_str(), "rb");
+    if (!checked_file) { perror("sort: can't open file for check_if_sorted"); return; }
+
+
+    long double prev_val = -std::numeric_limits<long double>::infinity();
+
+    while(true)
+    {
+        double m, v;
+        size_t read_m = fread(&m, sizeof(double), 1, checked_file);
+        size_t read_v = fread(&v, sizeof(double), 1, checked_file);
+
+        if (read_m != 1 || read_v != 1) break; // EOF
+
+        long double new_val = Record::get_value(m, v);
+        if (prev_val > new_val) 
+        { 
+            sorted = false; 
+            printf("!! FILE NOT SORTED AT: %d !!\n", ftell(checked_file) / RECORD_SIZE);
+            printf("prev: %0.2Lf new: %0.2Lf\n", prev_val, new_val);
+            break; 
+        }
+        prev_val = new_val;
+    }
+
+    if (sorted) printf("sort: OK\n");
+    fclose(checked_file);
 }

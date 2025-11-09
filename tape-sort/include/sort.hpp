@@ -16,7 +16,7 @@ struct RunInfo // run size will always be divisible by b -> as they are made fro
 };
 
 
-void sort(std::filesystem::path& file_path);
+void sort(const std::filesystem::path& file_path);
 
 // algorithm
 void create_runs(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, RunInfo& run_info);
@@ -33,5 +33,10 @@ int partition(std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buf
 
 // buffer merging
 void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, RunInfo& run_info);
+
+
+// helper
+void check_if_sorted(const std::filesystem::path& file_path);
+
 
 #endif //sort_hpp
