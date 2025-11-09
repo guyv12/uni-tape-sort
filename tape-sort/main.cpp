@@ -12,7 +12,7 @@ int main(void)
     test_quicksort();
 
     const char *const file_path = "database-file";
-    generate_db(file_path, 1'000);
+    generate_db(file_path, 20);
     sort(file_path);
     check_if_sorted(file_path);
 
@@ -22,7 +22,7 @@ int main(void)
 
 void test_quicksort()
 {
-    generate_db("database-file", 100);
+    generate_db("database-file", BLOCKING_FACTOR * BUFFER_COUNT);
     FileHandler file_handler("database-file");
 
     std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT> buffers;

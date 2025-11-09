@@ -51,6 +51,7 @@ bool FileHandler::write_block(const std::array<uint8_t, DISK_PAGE_SIZE>& data, s
 }
 
 
+std::filesystem::path FileHandler::get_file_path() { return file_path; }
 size_t FileHandler::get_blkcount() { return blk_counter; }
 unsigned long long int FileHandler::get_reads() { return r_events; }
 unsigned long long int FileHandler::get_writes() { return w_events; }

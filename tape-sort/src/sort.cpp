@@ -22,7 +22,7 @@ void sort(const std::filesystem::path& file_path)
 void create_runs(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, RunInfo& run_info)
 {
     size_t cur_blk = 0, blk_count = file_handler.get_blkcount();
-    run_info.run_size = BUFFER_COUNT;
+    run_info.run_count = 0; run_info.run_size = BUFFER_COUNT;
 
     while (cur_blk < blk_count)
     {
@@ -57,6 +57,12 @@ void merge(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_S
         merge_runs(in, out, buffers, run_info);
 
         toggle = !toggle;
+    }
+
+    if (toggle)
+    {
+        std::filesystem::remove(file_handler.get_file_path());
+        std::filesystem::rename("tmp-db", file_handler.get_file_path());
     }
 }
 
@@ -164,8 +170,8 @@ void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<
         // read into buffers, and setup its pointers
         for (int i = 0; i < merged_runs; i++)
         {
-            cursors[i].run_start = (cur_blk + i) * run_info.run_size; cursors[i].cur_block = cursors[i].run_start;
-            cursors[i].buffer_offset = 0;
+            cursors[i].run_start = (cur_blk + i) * run_info.run_size * RECORD_BYTES;
+            cursors[i].cur_block = cursors[i].run_start; cursors[i].buffer_offset = 0;
             input.read_block(buffers[i], cursors[i].run_start);
         }
 
@@ -187,22 +193,26 @@ void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<
             memcpy(buffers[BUFFER_COUNT - 1].data() + output_ptr, buffers[min.buffer].data() + cursors[min.buffer].buffer_offset, RECORD_SIZE);
             output_ptr += RECORD_SIZE; cursors[min.buffer].buffer_offset += RECORD_SIZE;
 
-            if (output_ptr + RECORD_SIZE >= DISK_PAGE_SIZE)
+            // write if output full
+            if (output_ptr + RECORD_SIZE > RECORD_BYTES)
             {
                 output.write_block(buffers[BUFFER_COUNT - 1], output.get_blkcount());
                 output_ptr = 0;
             }
 
+            // if end of the run reached
+            if (++cursors[min.buffer].cur_block - cursors[min.buffer].run_start >= run_info.run_size)
+                continue;
 
-            // bad condition & cur_block is not moved
-            if (cursors[min.buffer].buffer_offset < BLOCKING_FACTOR &&
-                ++cursors[min.buffer].cur_block - cursors[min.buffer].run_start <= run_info.run_size)
+            // read if input done
+            if (cursors[min.buffer].buffer_offset + RECORD_SIZE > RECORD_BYTES)
             {
                 input.read_block(buffers[min.buffer], cursors[min.buffer].cur_block);
-                cursors[min.buffer].buffer_offset = 0;
-                double *double_arr = reinterpret_cast<double *>(buffers[min.buffer].data());
-                heap.push(val_ptr{ double_arr[0], double_arr[1], min.buffer });        
+                cursors[min.buffer].buffer_offset = 0;      
             }
+
+            double *double_arr = reinterpret_cast<double *>(buffers[min.buffer].data() + cursors[min.buffer].buffer_offset);
+            heap.push(val_ptr{ double_arr[0], double_arr[1], min.buffer });        
         }
 
         cur_blk += merged_runs * run_info.run_size;
