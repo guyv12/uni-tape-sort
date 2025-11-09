@@ -170,8 +170,8 @@ void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<
         // read into buffers, and setup its pointers
         for (int i = 0; i < merged_runs; i++)
         {
-            cursors[i].run_start = (cur_blk + i) * run_info.run_size * RECORD_BYTES;
-            cursors[i].cur_block = cursors[i].run_start; cursors[i].buffer_offset = 0;
+            cursors[i].run_start = (cur_blk + i) * run_info.run_size; cursors[i].cur_block = cursors[i].run_start;
+            cursors[i].buffer_offset = 0;
             input.read_block(buffers[i], cursors[i].run_start);
         }
 
@@ -190,6 +190,7 @@ void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<
             val_ptr min = heap.top(); heap.pop();
 
             // move the smallest record to the output buffer
+
             memcpy(buffers[BUFFER_COUNT - 1].data() + output_ptr, buffers[min.buffer].data() + cursors[min.buffer].buffer_offset, RECORD_SIZE);
             output_ptr += RECORD_SIZE; cursors[min.buffer].buffer_offset += RECORD_SIZE;
 
@@ -200,15 +201,16 @@ void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<
                 output_ptr = 0;
             }
 
-            // if end of the run reached
-            if (++cursors[min.buffer].cur_block - cursors[min.buffer].run_start >= run_info.run_size)
+            // if end of the run reached !! ADD CHECK FOR THE LAST RUN !!
+            if (cursors[min.buffer].cur_block - cursors[min.buffer].run_start >= run_info.run_size ||
+                cursors[min.buffer].cur_block == blk_count)
                 continue;
 
             // read if input done
             if (cursors[min.buffer].buffer_offset + RECORD_SIZE > RECORD_BYTES)
             {
                 input.read_block(buffers[min.buffer], cursors[min.buffer].cur_block);
-                cursors[min.buffer].buffer_offset = 0;      
+                cursors[min.buffer].cur_block++; cursors[min.buffer].buffer_offset = 0;  
             }
 
             double *double_arr = reinterpret_cast<double *>(buffers[min.buffer].data() + cursors[min.buffer].buffer_offset);
@@ -229,7 +231,6 @@ void check_if_sorted(const std::filesystem::path& file_path)
 
     FILE *checked_file = fopen(file_path.c_str(), "rb");
     if (!checked_file) { perror("sort: can't open file for check_if_sorted"); return; }
-
 
     long double prev_val = -std::numeric_limits<long double>::infinity();
 
@@ -252,6 +253,6 @@ void check_if_sorted(const std::filesystem::path& file_path)
         prev_val = new_val;
     }
 
-    if (sorted) printf("sort: OK\n");
+    if (sorted) printf("sort: OK - finished check at: %d\n", ftell(checked_file) / RECORD_SIZE);
     fclose(checked_file);
 }
