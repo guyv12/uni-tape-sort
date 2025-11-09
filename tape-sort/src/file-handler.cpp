@@ -9,7 +9,7 @@ FileHandler::FileHandler(const std::filesystem::path& file_path) : file_path(fil
     FILE *file = fopen(file_path.c_str(), "ab");
     if (!file) { perror("File Handler: Can't open/create a FileHandler file"); return; }
 
-    fseek(file, 0, SEEK_END); blk_counter = -(-ftell(file) / RECORD_BYTES); // round up
+    fseek(file, 0, SEEK_END); blk_counter = (ftell(file) + RECORD_BYTES - 1) / RECORD_BYTES; // round up
     fclose(file);
 
     r_events = 0; w_events = 0;

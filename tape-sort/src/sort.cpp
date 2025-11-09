@@ -202,8 +202,7 @@ void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<
             }
 
             // if end of the run reached !! ADD CHECK FOR THE LAST RUN !!
-            if (cursors[min.buffer].cur_block - cursors[min.buffer].run_start >= run_info.run_size ||
-                cursors[min.buffer].cur_block == blk_count)
+            if (cursors[min.buffer].cur_block - cursors[min.buffer].run_start >= run_info.run_size)
                 continue;
 
             // read if input done

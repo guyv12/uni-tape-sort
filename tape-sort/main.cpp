@@ -12,7 +12,7 @@ int main(void)
     test_quicksort();
 
     const char *const file_path = "database-file";
-    generate_db(file_path, 20);
+    generate_db(file_path, 12);
     sort(file_path);
     check_if_sorted(file_path);
 
