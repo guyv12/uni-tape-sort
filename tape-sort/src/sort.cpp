@@ -46,7 +46,7 @@ void create_runs(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_
 
 void merge(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, RunInfo& run_info)
 {
-    FileHandler tmp("tmp");
+    FileHandler tmp("tmp-db");
     bool toggle = false;
 
     while (run_info.run_count > 1)
@@ -57,7 +57,6 @@ void merge(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_S
         merge_runs(in, out, buffers, run_info);
 
         toggle = !toggle;
-        run_info.run_count -= std::min(run_info.run_count, static_cast<size_t>(BUFFER_COUNT));
     }
 }
 
@@ -144,8 +143,6 @@ void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<
     std::array<RunCursor, BUFFER_COUNT - 1> cursors;
     size_t output_ptr = 0;
 
-    FileHandler tmp("tmp-db");
-
     // create min heap
     auto cmp = [](const val_ptr& a, const val_ptr& b) 
     {
@@ -167,7 +164,7 @@ void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<
         // read into buffers, and setup its pointers
         for (int i = 0; i < merged_runs; i++)
         {
-            cursors[i].run_start = i * run_info.run_size; cursors[i].cur_block = cursors[i].run_start;
+            cursors[i].run_start = (cur_blk + i) * run_info.run_size; cursors[i].cur_block = cursors[i].run_start;
             cursors[i].buffer_offset = 0;
             input.read_block(buffers[i], cursors[i].run_start);
         }
@@ -197,6 +194,7 @@ void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<
             }
 
 
+            // bad condition & cur_block is not moved
             if (cursors[min.buffer].buffer_offset < BLOCKING_FACTOR &&
                 ++cursors[min.buffer].cur_block - cursors[min.buffer].run_start <= run_info.run_size)
             {
@@ -208,7 +206,7 @@ void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<
         }
 
         cur_blk += merged_runs * run_info.run_size;
-        run_info.run_count -= merged_runs;
+        run_info.run_count -= (merged_runs - 1);
     }
 }
 
@@ -234,7 +232,7 @@ void check_if_sorted(const std::filesystem::path& file_path)
         if (read_m != 1 || read_v != 1) break; // EOF
 
         long double new_val = Record::get_value(m, v);
-        if (prev_val > new_val) 
+        if (prev_val > new_val)
         { 
             sorted = false; 
             printf("!! FILE NOT SORTED AT: %d !!\n", ftell(checked_file) / RECORD_SIZE);

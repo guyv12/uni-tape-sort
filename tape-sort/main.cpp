@@ -4,12 +4,12 @@
 #include "file-handler.hpp"
 #include "sort.hpp"
 
-void test1();
+void test_quicksort();
 
 
 int main(void)
 {
-    test1();
+    test_quicksort();
 
     const char *const file_path = "database-file";
     generate_db(file_path, 1'000);
@@ -20,7 +20,7 @@ int main(void)
 }
 
 
-void test1()
+void test_quicksort()
 {
     generate_db("database-file", 100);
     FileHandler file_handler("database-file");

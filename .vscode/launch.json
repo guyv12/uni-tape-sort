@@ -2,14 +2,30 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug tape-sort (manual)",
+      "name": "Debug tape-sort",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/build/tape-sort",
+      "args": [],
+      "stopAtEntry": true,
       "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "preLaunchTask": "CMake Build (Debug)",
       "MIMode": "gdb",
-      "preLaunchTask": "CMake Build",
-      "externalConsole": true
+      "miDebuggerPath": "/usr/bin/gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        },
+        {
+          "description": "Skip STL and system headers",
+          "text": "skip -gfi /usr/include/c++/*",
+          "ignoreFailures": true
+        }
+      ]
     }
   ]
 }
