@@ -8,7 +8,7 @@ void test_sort();
 
 int main(void)
 {
-    // test_quicksort();
+    test_quicksort();
     test_sort();
 
     return 0;
@@ -17,8 +17,9 @@ int main(void)
 
 void test_quicksort()
 {
-    generate_db("database-file", BLOCKING_FACTOR * BUFFER_COUNT);
-    FileHandler file_handler("database-file");
+    const char *const file_path = "qsort-file";
+    generate_db(file_path, BLOCKING_FACTOR * BUFFER_COUNT);
+    FileHandler file_handler(file_path);
 
     std::array<Buffer, BUFFER_COUNT> buffers;
     
@@ -30,9 +31,10 @@ void test_quicksort()
     print_buffers(buffers);
 
     for(size_t i = 0; i < BUFFER_COUNT; i++)
-        file_handler.write_block(buffers[i].array(), i, -1);
+        file_handler.write_block(buffers[i].array(), i);
 
-    check_if_sorted("database-file");
+    check_if_sorted(file_path);
+    std::filesystem::remove(file_path);
 }
 
 
