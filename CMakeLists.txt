@@ -6,6 +6,7 @@ add_executable(
     tape-sort
     tape-sort/main.cpp
     tape-sort/src/record.cpp
+    tape-sort/src/buffer.cpp
     tape-sort/src/file-handler.cpp
     tape-sort/src/sort.cpp
 )

@@ -1,8 +1,6 @@
 #include <cstdio>
-
-#include "record.hpp"
-#include "file-handler.hpp"
 #include "sort.hpp"
+
 
 void test_quicksort();
 void test_sort();
@@ -22,17 +20,17 @@ void test_quicksort()
     generate_db("database-file", BLOCKING_FACTOR * BUFFER_COUNT);
     FileHandler file_handler("database-file");
 
-    std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT> buffers;
+    std::array<Buffer, BUFFER_COUNT> buffers;
     
     for (size_t i = 0; i < BUFFER_COUNT; i++)
-        file_handler.read_block(buffers[i], i);
+        file_handler.read_block(buffers[i].array(), i);
             
     quick_sort(buffers, 0, (BUFFER_COUNT * BLOCKING_FACTOR) - 1);
 
     print_buffers(buffers);
 
     for(size_t i = 0; i < BUFFER_COUNT; i++)
-        file_handler.write_block(buffers[i], i);
+        file_handler.write_block(buffers[i].array(), i, -1);
 
     check_if_sorted("database-file");
 }

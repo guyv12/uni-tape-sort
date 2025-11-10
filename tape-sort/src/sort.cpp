@@ -11,7 +11,7 @@
 void sort(const std::filesystem::path& file_path)
 {
     FileHandler file_handler(file_path);
-    std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT> buffers;
+    std::array<Buffer, BUFFER_COUNT> buffers;
     RunInfo run_info;
 
     create_runs(file_handler, buffers, run_info);
@@ -19,7 +19,7 @@ void sort(const std::filesystem::path& file_path)
 }
 
 
-void create_runs(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, RunInfo& run_info)
+void create_runs(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buffers, RunInfo& run_info)
 {
     size_t cur_blk = 0, blk_count = file_handler.get_blkcount();
     run_info.run_count = 0; run_info.run_size = BUFFER_COUNT;
@@ -30,13 +30,13 @@ void create_runs(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_
 
         // read data into the buffers
         for (size_t i = 0; i < blks_to_read; i++)
-            file_handler.read_block(buffers[i], cur_blk + i);
+            file_handler.read_block(buffers[i].array(), cur_blk + i); // <== here should be some check how many records are inside?
 
         quick_sort(buffers, 0, (BUFFER_COUNT * BLOCKING_FACTOR) - 1);
 
         // write sorted series to the file
         for(size_t i = 0; i < blks_to_read; i++)
-            file_handler.write_block(buffers[i], cur_blk + i);
+            file_handler.write_block(buffers[i].array(), cur_blk + i);
 
         cur_blk += blks_to_read;
         run_info.run_count++;
@@ -44,7 +44,7 @@ void create_runs(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_
 }
 
 
-void merge(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, RunInfo& run_info)
+void merge(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buffers, RunInfo& run_info)
 {
     FileHandler tmp("tmp-db");
     bool toggle = false;
@@ -73,32 +73,32 @@ void merge(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_S
 
 // ------ individual sort ------
 
-long double get_local(std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, int global_ptr)
+long double get_local(std::array<Buffer, BUFFER_COUNT>& buffers, int global_ptr)
 {
     // * 2 because 1 record = 2 doubles
     int ptr_buffer = global_ptr / BLOCKING_FACTOR, local_ptr = 2 * (global_ptr % BLOCKING_FACTOR);
 
-    double *buffer_cast = reinterpret_cast<double *>(buffers[ptr_buffer].data());
+    double *buffer_cast = reinterpret_cast<double *>(buffers[ptr_buffer].array().data());
 
     double m = buffer_cast[local_ptr], v = buffer_cast[local_ptr + 1]; // a whole record (2 doubles) is guaranteed to be in 1 buffer
     return Record::get_value(m, v);
 }
 
-void swap(std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, int global_l, int global_r)
+void swap(std::array<Buffer, BUFFER_COUNT>& buffers, int global_l, int global_r)
 {
     // * 2 because 1 record = 2 doubles
     int l_buffer = global_l / BLOCKING_FACTOR, l_ptr = 2 * (global_l % BLOCKING_FACTOR);
     int r_buffer = global_r / BLOCKING_FACTOR, r_ptr = 2 * (global_r % BLOCKING_FACTOR);
 
-    double *l_cast = reinterpret_cast<double *>(buffers[l_buffer].data());
-    double *r_cast = reinterpret_cast<double *>(buffers[r_buffer].data());
+    double *l_cast = reinterpret_cast<double *>(buffers[l_buffer].array().data());
+    double *r_cast = reinterpret_cast<double *>(buffers[r_buffer].array().data());
 
     std::swap(l_cast[l_ptr], r_cast[r_ptr]); // swap m
     std::swap(l_cast[l_ptr + 1], r_cast[r_ptr + 1]); // swap v
 }
 
 
-void quick_sort(std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, int global_l, int global_r)
+void quick_sort(std::array<Buffer, BUFFER_COUNT>& buffers, int global_l, int global_r)
 {
     if (global_l >= global_r) return; // recursion check
 
@@ -107,7 +107,7 @@ void quick_sort(std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& b
     quick_sort(buffers, q + 1, global_r);
 }
 
-int partition(std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, int global_l, int global_r)
+int partition(std::array<Buffer, BUFFER_COUNT>& buffers, int global_l, int global_r)
 {
     long double pivot = get_local(buffers, global_l);
 
@@ -131,7 +131,7 @@ int partition(std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buf
 
 //----- individual merge ----
 // TODO - ignore padding data?
-void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, RunInfo& run_info)
+void merge_runs(FileHandler& input, FileHandler& output, std::array<Buffer, BUFFER_COUNT>& buffers, RunInfo& run_info)
 {
     // --- STRUCT DEF ---
     struct val_ptr 
@@ -177,13 +177,13 @@ void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<
             cursors[i].run_end = std::min(blk_count, cursors[i].run_start + run_info.run_size);
             cursors[i].cur_block = cursors[i].run_start; cursors[i].buffer_offset = 0;
 
-            input.read_block(buffers[i], cursors[i].run_start);
+            input.read_block(buffers[i].array(), cursors[i].run_start);
         }
 
         // convert the data to storeable in the heap, and store in the heap
         for (int i = 0; i < merged_runs; i++)
         {
-            double *double_arr = reinterpret_cast<double *>(buffers[i].data());
+            double *double_arr = reinterpret_cast<double *>(buffers[i].array().data());
             heap.push(val_ptr{ double_arr[0], double_arr[1], i });
         }
 
@@ -194,13 +194,16 @@ void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<
             val_ptr min = heap.top(); heap.pop();
 
             // move the smallest record to the output buffer
-            memcpy(buffers[BUFFER_COUNT - 1].data() + output_ptr, buffers[min.buffer].data() + cursors[min.buffer].buffer_offset, RECORD_SIZE);
+            memcpy(buffers[BUFFER_COUNT - 1].array().data() + output_ptr,
+                buffers[min.buffer].array().data() + cursors[min.buffer].buffer_offset,
+                RECORD_SIZE
+            );
             output_ptr += RECORD_SIZE; cursors[min.buffer].buffer_offset += RECORD_SIZE;
 
             // write if output full
             if (output_ptr + RECORD_SIZE > RECORD_BYTES)
             {
-                output.write_block(buffers[BUFFER_COUNT - 1], output.get_blkcount());
+                output.write_block(buffers[BUFFER_COUNT - 1].array(), output.get_blkcount());
                 output_ptr = 0;
             }
 
@@ -213,10 +216,10 @@ void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<
                 if (cursors[min.buffer].cur_block >= cursors[min.buffer].run_end)
                     continue;
 
-                input.read_block(buffers[min.buffer], cursors[min.buffer].cur_block);
+                input.read_block(buffers[min.buffer].array(), cursors[min.buffer].cur_block);
             }
 
-            double *double_arr = reinterpret_cast<double *>(buffers[min.buffer].data() + cursors[min.buffer].buffer_offset);
+            double *double_arr = reinterpret_cast<double *>(buffers[min.buffer].array().data() + cursors[min.buffer].buffer_offset);
             heap.push(val_ptr{ double_arr[0], double_arr[1], min.buffer });        
         }
 
@@ -226,7 +229,7 @@ void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<
 
     // write the last (possibly unfinished) part
     if (output_ptr != 0)
-        output.write_block(buffers[BUFFER_COUNT - 1], output.get_blkcount(), output_ptr);
+        output.write_block(buffers[BUFFER_COUNT - 1].array(), output.get_blkcount(), output_ptr);
 
     run_info.run_count = new_runs;
     run_info.run_size *= (BUFFER_COUNT - 1);
@@ -268,11 +271,11 @@ void check_if_sorted(const std::filesystem::path& file_path)
 }
 
 
-void print_buffers(std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers)
+void print_buffers(std::array<Buffer, BUFFER_COUNT>& buffers)
 {
     for (int i = 0; i < BUFFER_COUNT; i++)
     {
-        double* arr = reinterpret_cast<double*>(buffers[i].data());
+        double* arr = reinterpret_cast<double*>(buffers[i].array().data());
 
         for (int j = 0; j < BLOCKING_FACTOR; j++)
         {

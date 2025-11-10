@@ -15,9 +15,8 @@ class FileHandler
 
         FileHandler(const std::filesystem::path& file_path);
 
-        bool read_block(std::array<uint8_t, DISK_PAGE_SIZE>& out, const size_t block_idx);
-        bool write_block(const std::array<uint8_t, DISK_PAGE_SIZE>& data, size_t block_idx);
-        bool write_block(const std::array<uint8_t, DISK_PAGE_SIZE>& data, size_t block_idx, size_t bytes);
+        size_t read_block(std::array<uint8_t, DISK_PAGE_SIZE>& out, const size_t block_idx);
+        size_t write_block(const std::array<uint8_t, DISK_PAGE_SIZE>& data, size_t block_idx, size_t bytes = RECORD_BYTES);
 
         void reset();
         std::filesystem::path get_file_path();
