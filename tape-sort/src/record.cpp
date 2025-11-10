@@ -66,7 +66,7 @@ void input_db(const std::filesystem::path& file_name)
         if (input == "q" || input == "Q") { quit = true; break; }
 
         double m, v;
-        if (sscanf(input.c_str(), "%f %f", &m, &v) == 2)
+        if (sscanf(input.c_str(), "%lf %lf", &m, &v) == 2)
         {
             fwrite(&m, sizeof(m), 1, db);
             fwrite(&v, sizeof(v), 1, db);
@@ -76,6 +76,6 @@ void input_db(const std::filesystem::path& file_name)
     }
 
     fclose(db);
-    printf("database saved to %s", file_name.c_str());
+    printf("database saved to %s\n", file_name.c_str());
 }
 
