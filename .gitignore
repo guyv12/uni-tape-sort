@@ -15,4 +15,4 @@
 *.vsix
 
 database-file
-tmp
+tmp-db

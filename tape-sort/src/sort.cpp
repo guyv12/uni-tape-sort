@@ -54,6 +54,7 @@ void merge(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_S
         FileHandler& in  = toggle ? tmp : file_handler;
         FileHandler& out = toggle ? file_handler : tmp;
 
+        out.reset();
         merge_runs(in, out, buffers, run_info);
 
         toggle = !toggle;
@@ -126,11 +127,10 @@ int partition(std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buf
 
 
 //----- individual merge ----
-
+// TODO - ignore padding data?
 void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers, RunInfo& run_info)
 {
     // --- STRUCT DEF ---
-
     struct val_ptr 
     {
         double m;
@@ -142,6 +142,7 @@ void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<
     struct RunCursor 
     {
         size_t run_start;       // starting block index
+        size_t run_end;         // ending block index (last run can be smaller)
         size_t cur_block;       // current block index
         size_t buffer_offset;   // offset (in bytes not records!) within the current buffer
     };
@@ -158,24 +159,25 @@ void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<
 
 
     // -- MAIN MERGE LOOP ---
-
     size_t cur_blk = 0, blk_count = input.get_blkcount();
+    int merged_total = 0, new_runs = 0;
 
     while (cur_blk < blk_count)
     {
         // --- INITIAL HEAP POPULATION ---
+        size_t merged_runs = std::min(static_cast<size_t>(BUFFER_COUNT - 1), run_info.run_count - merged_total);
 
-        size_t merged_runs = std::min(run_info.run_count, static_cast<size_t>(BUFFER_COUNT));
-
-        // read into buffers, and setup its pointers
+        // setup cursors and read the data into buffers
         for (int i = 0; i < merged_runs; i++)
         {
-            cursors[i].run_start = (cur_blk + i) * run_info.run_size; cursors[i].cur_block = cursors[i].run_start;
-            cursors[i].buffer_offset = 0;
+            cursors[i].run_start = cur_blk + i * run_info.run_size;
+            cursors[i].run_end = std::min(blk_count, cursors[i].run_start + run_info.run_size);
+            cursors[i].cur_block = cursors[i].run_start; cursors[i].buffer_offset = 0;
+
             input.read_block(buffers[i], cursors[i].run_start);
         }
 
-        // convert the data to store in the heap, and store in the heap
+        // convert the data to storeable in the heap, and store in the heap
         for (int i = 0; i < merged_runs; i++)
         {
             double *double_arr = reinterpret_cast<double *>(buffers[i].data());
@@ -184,13 +186,11 @@ void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<
 
 
         // -- MERGE LOOP ---
-
         while(!heap.empty())
         {
             val_ptr min = heap.top(); heap.pop();
 
             // move the smallest record to the output buffer
-
             memcpy(buffers[BUFFER_COUNT - 1].data() + output_ptr, buffers[min.buffer].data() + cursors[min.buffer].buffer_offset, RECORD_SIZE);
             output_ptr += RECORD_SIZE; cursors[min.buffer].buffer_offset += RECORD_SIZE;
 
@@ -201,15 +201,16 @@ void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<
                 output_ptr = 0;
             }
 
-            // if end of the run reached !! ADD CHECK FOR THE LAST RUN !!
-            if (cursors[min.buffer].cur_block - cursors[min.buffer].run_start >= run_info.run_size)
-                continue;
-
-            // read if input done
+            // check if input exhausted
             if (cursors[min.buffer].buffer_offset + RECORD_SIZE > RECORD_BYTES)
             {
+                cursors[min.buffer].cur_block++; cursors[min.buffer].buffer_offset = 0;
+
+                // if run exceeded skip
+                if (cursors[min.buffer].cur_block >= cursors[min.buffer].run_end)
+                    continue;
+
                 input.read_block(buffers[min.buffer], cursors[min.buffer].cur_block);
-                cursors[min.buffer].cur_block++; cursors[min.buffer].buffer_offset = 0;  
             }
 
             double *double_arr = reinterpret_cast<double *>(buffers[min.buffer].data() + cursors[min.buffer].buffer_offset);
@@ -217,8 +218,15 @@ void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<
         }
 
         cur_blk += merged_runs * run_info.run_size;
-        run_info.run_count -= (merged_runs - 1);
+        merged_total += merged_runs; new_runs++;
     }
+
+    // write the last (possibly unfinished) part
+    if (output_ptr != 0)
+        output.write_block(buffers[BUFFER_COUNT - 1], output.get_blkcount(), output_ptr);
+
+    run_info.run_count = new_runs;
+    run_info.run_size *= (BUFFER_COUNT - 1);
 }
 
 
@@ -245,13 +253,28 @@ void check_if_sorted(const std::filesystem::path& file_path)
         if (prev_val > new_val)
         { 
             sorted = false; 
-            printf("!! FILE NOT SORTED AT: %d !!\n", ftell(checked_file) / RECORD_SIZE);
+            printf("\n!! FILE NOT SORTED AT: %d !!\n", ftell(checked_file) / RECORD_SIZE);
             printf("prev: %0.2Lf new: %0.2Lf\n", prev_val, new_val);
             break; 
         }
         prev_val = new_val;
     }
 
-    if (sorted) printf("sort: OK - finished check at: %d\n", ftell(checked_file) / RECORD_SIZE);
+    if (sorted) printf("\nsort: OK - finished check at: %d\n", ftell(checked_file) / RECORD_SIZE);
     fclose(checked_file);
+}
+
+
+void print_buffers(std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers)
+{
+    for (int i = 0; i < BUFFER_COUNT; i++)
+    {
+        double* arr = reinterpret_cast<double*>(buffers[i].data());
+
+        for (int j = 0; j < BLOCKING_FACTOR; j++)
+        {
+            printf("%d: %0.2Lf ", i * BLOCKING_FACTOR + j, Record::get_value(arr[2 * j], arr[2 * j + 1]));
+        }
+        printf("\n");
+    }
 }

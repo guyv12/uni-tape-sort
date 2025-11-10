@@ -78,4 +78,3 @@ void input_db(const std::filesystem::path& file_name)
     fclose(db);
     printf("database saved to %s\n", file_name.c_str());
 }
-

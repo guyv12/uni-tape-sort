@@ -50,6 +50,22 @@ bool FileHandler::write_block(const std::array<uint8_t, DISK_PAGE_SIZE>& data, s
     return true;
 }
 
+bool FileHandler::write_block(const std::array<uint8_t, DISK_PAGE_SIZE>& data, size_t block_idx, size_t bytes)
+{
+    FILE *file = fopen(file_path.c_str(), "rb+");
+    if (!file) { perror("File Handler: Can't open FileHandler file for write_block"); return false; }
+
+    if (block_idx + 1 > blk_counter)  block_idx = blk_counter++; // if idx not present, append at the end
+
+    fseek(file, RECORD_BYTES * block_idx, SEEK_SET);
+    fwrite(data.data(), 1, bytes, file);
+    fclose(file);
+
+    w_events++;
+    return true;
+}
+
+void FileHandler::reset() { blk_counter = 0; }
 
 std::filesystem::path FileHandler::get_file_path() { return file_path; }
 size_t FileHandler::get_blkcount() { return blk_counter; }

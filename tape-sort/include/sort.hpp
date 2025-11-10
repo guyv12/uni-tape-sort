@@ -37,6 +37,6 @@ void merge_runs(FileHandler& input, FileHandler& output,  std::array<std::array<
 
 // helper
 void check_if_sorted(const std::filesystem::path& file_path);
-
+void print_buffers(std::array<std::array<uint8_t, DISK_PAGE_SIZE>, BUFFER_COUNT>& buffers);
 
 #endif //sort_hpp
