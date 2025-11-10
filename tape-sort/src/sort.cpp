@@ -63,8 +63,11 @@ void merge(FileHandler& file_handler, std::array<std::array<uint8_t, DISK_PAGE_S
     if (toggle)
     {
         std::filesystem::remove(file_handler.get_file_path());
-        std::filesystem::rename("tmp-db", file_handler.get_file_path());
+        std::filesystem::rename(tmp.get_file_path(), file_handler.get_file_path());
     }
+
+    else
+        std::filesystem::remove(tmp.get_file_path());
 }
 
 
