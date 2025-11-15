@@ -1,7 +1,6 @@
 #include <cstdio>
 #include "sort.hpp"
 
-
 void test_quicksort();
 void test_merge();
 void test_sort();
@@ -9,6 +8,7 @@ void test_sort();
 
 int main(void)
 {
+    srand(time(NULL));
     test_sort();
 
     return 0;
