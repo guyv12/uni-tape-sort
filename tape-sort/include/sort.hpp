@@ -21,8 +21,8 @@ struct RunInfo // run size will always be divisible by b -> as they are made fro
 void sort(const std::filesystem::path& file_path);
 
 // algorithm
-void create_runs(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buffers, RunInfo& run_info);
-void merge(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buffers, RunInfo& run_info);
+int create_runs(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buffers, RunInfo& run_info);
+int merge(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buffers, RunInfo& run_info);
 
 
 // individual file sort

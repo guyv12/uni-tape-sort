@@ -15,7 +15,7 @@ class Buffer
 
         void set_size(size_t size);
 
-        size_t size();
+        size_t size() const;
         std::array<uint8_t, DISK_PAGE_SIZE>& array();
 
     private:

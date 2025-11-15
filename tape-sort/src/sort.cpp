@@ -14,13 +14,17 @@ void sort(const std::filesystem::path& file_path)
     std::array<Buffer, BUFFER_COUNT> buffers;
     RunInfo run_info;
 
-    create_runs(file_handler, buffers, run_info);
-    merge(file_handler, buffers, run_info);
+    int sort_phases = create_runs(file_handler, buffers, run_info);
+    int merge_phases = merge(file_handler, buffers, run_info);
+
+    // printf("sort: %d, merge: %d", sort_phases, merge_phases);
 }
 
 
-void create_runs(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buffers, RunInfo& run_info)
+int create_runs(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buffers, RunInfo& run_info)
 {
+    int phases = 0;
+
     size_t cur_blk = 0, blk_count = file_handler.get_blkcount();
     run_info.run_count = 0; run_info.run_size = BUFFER_COUNT;
 
@@ -30,22 +34,33 @@ void create_runs(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& bu
 
         // read data into the buffers
         for (size_t i = 0; i < blks_to_read; i++)
-            file_handler.read_block(buffers[i].array(), cur_blk + i); // <== here should be some check how many records are inside?
+        {
+            size_t bytes = file_handler.read_block(buffers[i].array(), cur_blk + i); // <== here should be some check how many records are inside?
+            buffers[i].set_size(bytes);
+        }
 
-        quick_sort(buffers, 0, (BUFFER_COUNT * BLOCKING_FACTOR) - 1);
+        int last_offset = 0;
+        for (size_t i = 0; i < blks_to_read; i++)
+            last_offset += buffers[i].size() / RECORD_SIZE;
+        quick_sort(buffers, 0, last_offset - 1);
 
         // write sorted series to the file
         for(size_t i = 0; i < blks_to_read; i++)
-            file_handler.write_block(buffers[i].array(), cur_blk + i);
+            file_handler.write_block(buffers[i].array(), cur_blk + i, buffers[i].size());
 
         cur_blk += blks_to_read;
         run_info.run_count++;
+        phases++;
     }
+
+    return phases;
 }
 
 
-void merge(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buffers, RunInfo& run_info)
+int merge(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buffers, RunInfo& run_info)
 {
+    int phases = 0;
+
     FileHandler tmp("tmp-db");
     bool toggle = false;
 
@@ -58,6 +73,7 @@ void merge(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buffers,
         merge_runs(in, out, buffers, run_info);
 
         toggle = !toggle;
+        phases++;
     }
 
     if (toggle)
@@ -68,6 +84,8 @@ void merge(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buffers,
 
     else
         std::filesystem::remove(tmp.get_file_path());
+
+    return phases;
 }
 
 
@@ -177,7 +195,8 @@ void merge_runs(FileHandler& input, FileHandler& output, std::array<Buffer, BUFF
             cursors[i].run_end = std::min(blk_count, cursors[i].run_start + run_info.run_size);
             cursors[i].cur_block = cursors[i].run_start; cursors[i].buffer_offset = 0;
 
-            input.read_block(buffers[i].array(), cursors[i].run_start);
+            size_t bytes = input.read_block(buffers[i].array(), cursors[i].run_start);
+            buffers[i].set_size(bytes);
         }
 
         // convert the data to storeable in the heap, and store in the heap
@@ -208,7 +227,7 @@ void merge_runs(FileHandler& input, FileHandler& output, std::array<Buffer, BUFF
             }
 
             // check if input exhausted
-            if (cursors[min.buffer].buffer_offset + RECORD_SIZE > RECORD_BYTES)
+            if (cursors[min.buffer].buffer_offset + RECORD_SIZE > buffers[min.buffer].size())
             {
                 cursors[min.buffer].cur_block++; cursors[min.buffer].buffer_offset = 0;
 
@@ -216,7 +235,8 @@ void merge_runs(FileHandler& input, FileHandler& output, std::array<Buffer, BUFF
                 if (cursors[min.buffer].cur_block >= cursors[min.buffer].run_end)
                     continue;
 
-                input.read_block(buffers[min.buffer].array(), cursors[min.buffer].cur_block);
+                size_t bytes = input.read_block(buffers[min.buffer].array(), cursors[min.buffer].cur_block);
+                buffers[min.buffer].set_size(bytes);
             }
 
             double *double_arr = reinterpret_cast<double *>(buffers[min.buffer].array().data() + cursors[min.buffer].buffer_offset);
