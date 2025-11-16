@@ -1,4 +1,5 @@
 #include "file-handler.hpp"
+#include "record.hpp"
 
 
 FileHandler::FileHandler(const std::filesystem::path& file_path) : file_path(file_path)
@@ -60,5 +61,20 @@ unsigned long long int FileHandler::get_writes() { return w_events; }
 
 void FileHandler::print()
 {
-   // TODO Read, cast to record, print records, repeat
+    FILE *checked_file = fopen(file_path.c_str(), "rb");
+    if (!checked_file) { perror("sort: can't open file for cli_print"); return; }
+
+    while(true)
+    {
+        double m, v;
+        size_t read_m = fread(&m, sizeof(double), 1, checked_file);
+        size_t read_v = fread(&v, sizeof(double), 1, checked_file);
+
+        if (read_m != 1 || read_v != 1) break; // EOF
+
+        long double val = Record::get_value(m, v);
+        printf("%Lf\n", val);
+    }
+
+    fclose(checked_file);
 }

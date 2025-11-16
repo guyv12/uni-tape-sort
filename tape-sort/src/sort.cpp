@@ -17,7 +17,7 @@ void sort(const std::filesystem::path& file_path)
     int sort_phases = create_runs(file_handler, buffers, run_info);
     int merge_phases = merge(file_handler, buffers, run_info);
 
-    // printf("sort: %d, merge: %d", sort_phases, merge_phases);
+    printf("sort: %d, merge: %d\n", sort_phases, merge_phases);
 }
 
 
@@ -48,6 +48,8 @@ int create_runs(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buf
         for(size_t i = 0; i < blks_to_read; i++)
             file_handler.write_block(buffers[i].array(), cur_blk + i, buffers[i].size());
 
+        // file_handler.print();
+
         cur_blk += blks_to_read;
         run_info.run_count++;
         phases++;
@@ -72,6 +74,8 @@ int merge(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buffers, 
         out.reset();
         merge_runs(in, out, buffers, run_info);
 
+        // out.print();
+        
         toggle = !toggle;
         phases++;
     }

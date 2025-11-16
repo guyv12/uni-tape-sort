@@ -1,4 +1,4 @@
-#include <cstdio>
+#include "cli.hpp"
 #include "sort.hpp"
 
 void test_quicksort();
@@ -8,8 +8,7 @@ void test_sort();
 
 int main(void)
 {
-    srand(time(NULL));
-    test_sort();
+    cli();
 
     return 0;
 }

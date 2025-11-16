@@ -48,6 +48,7 @@ void generate_db(const std::filesystem::path& file_name, long long int records)
     }
 
     fclose(db);
+    printf("database saved to %s\n", file_name.c_str());
 }
 
 void input_db(const std::filesystem::path& file_name)
