@@ -8,8 +8,9 @@ void test_sort();
 
 int main(void)
 {
-    cli();
-
+    //cli();
+    
+    test_sort();
     return 0;
 }
 
@@ -47,8 +48,9 @@ void test_merge()
     FileHandler file_handler(file_path);
     std::array<Buffer, BUFFER_COUNT> buffers;
     RunInfo run_info {2, 3};
+    unsigned long long int rw;
 
-    merge(file_handler, buffers, run_info);
+    merge(file_handler, buffers, run_info, rw, false);
     check_if_sorted(file_path);
 
     std::filesystem::remove(file_path);
@@ -62,7 +64,11 @@ void test_sort()
     for (int i = 0; i < 11; i++)
     {
         size_t file_size = i * 100'000 + rand() % 5'000;
-        printf("file size: %d", static_cast<int>(file_size));
+        printf("file size: %d\n", static_cast<int>(file_size));
+
+        // FILE *data_file = fopen("sort.dat", "a");
+        // fprintf(data_file, "%d", file_size);
+        // fclose(data_file);
 
         generate_db(file_path, file_size);
         sort(file_path);

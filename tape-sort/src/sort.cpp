@@ -8,20 +8,30 @@
 #include <algorithm>
 
 
-void sort(const std::filesystem::path& file_path)
+void sort(const std::filesystem::path& file_path, bool verbose)
 {
     FileHandler file_handler(file_path);
     std::array<Buffer, BUFFER_COUNT> buffers;
     RunInfo run_info;
+    unsigned long long int rw;
+    
+    if (verbose) file_handler.print();
 
-    int sort_phases = create_runs(file_handler, buffers, run_info);
-    int merge_phases = merge(file_handler, buffers, run_info);
+    int sort_phases = create_runs(file_handler, buffers, run_info, verbose);
+    int merge_phases = merge(file_handler, buffers, run_info, rw, verbose);
 
-    printf("sort: %d, merge: %d\n", sort_phases, merge_phases);
+    if (verbose) file_handler.print();
+
+    printf("\nsort: %d | merge: %d\n", sort_phases, merge_phases);
+    printf("r/w operations: %llu\n\n\n", rw);
+
+    // FILE *data_file = fopen("sort.dat", "a");
+    // fprintf(data_file, " %llu\n", rw);
+    // fclose(data_file);
 }
 
 
-int create_runs(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buffers, RunInfo& run_info)
+int create_runs(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buffers, RunInfo& run_info, bool verbose)
 {
     int phases = 0;
 
@@ -48,7 +58,7 @@ int create_runs(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buf
         for(size_t i = 0; i < blks_to_read; i++)
             file_handler.write_block(buffers[i].array(), cur_blk + i, buffers[i].size());
 
-        // file_handler.print();
+        if (verbose) file_handler.print();
 
         cur_blk += blks_to_read;
         run_info.run_count++;
@@ -59,7 +69,7 @@ int create_runs(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buf
 }
 
 
-int merge(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buffers, RunInfo& run_info)
+int merge(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buffers, RunInfo& run_info, unsigned long long int& rw, bool verbose)
 {
     int phases = 0;
 
@@ -74,11 +84,13 @@ int merge(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buffers, 
         out.reset();
         merge_runs(in, out, buffers, run_info);
 
-        // out.print();
+        if (verbose) out.print();
         
         toggle = !toggle;
         phases++;
     }
+
+    rw = file_handler.get_reads() + file_handler.get_writes() + tmp.get_reads() + tmp.get_writes();
 
     if (toggle)
     {
@@ -152,7 +164,7 @@ int partition(std::array<Buffer, BUFFER_COUNT>& buffers, int global_l, int globa
 
 
 //----- individual merge ----
-// TODO - ignore padding data?
+
 void merge_runs(FileHandler& input, FileHandler& output, std::array<Buffer, BUFFER_COUNT>& buffers, RunInfo& run_info)
 {
     // --- STRUCT DEF ---
@@ -290,7 +302,7 @@ void check_if_sorted(const std::filesystem::path& file_path)
         prev_val = new_val;
     }
 
-    if (sorted) printf("\nsort: OK - finished check at: %d\n", ftell(checked_file) / RECORD_SIZE);
+    if (sorted) printf("sort: OK - finished check at: %d\n", ftell(checked_file) / RECORD_SIZE);
     fclose(checked_file);
 }
 

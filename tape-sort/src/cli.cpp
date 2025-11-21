@@ -60,7 +60,7 @@ void c_launch_sort_v()
     std::string file_name;
     std::cin >> file_name;
 
-    sort(file_name);
+    sort(file_name, true);
 }
 
 void c_gen_db()
