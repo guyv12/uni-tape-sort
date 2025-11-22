@@ -8,9 +8,8 @@ void test_sort();
 
 int main(void)
 {
-    //cli();
-    
-    test_sort();
+    cli();
+
     return 0;
 }
 
@@ -60,6 +59,10 @@ void test_merge()
 void test_sort()
 {
     const char *const file_path = "database-file";
+
+    // FILE *data_file = fopen("sort.dat", "a");
+    // fprintf(data_file, "%d %d\n", BLOCKING_FACTOR, BUFFER_COUNT);
+    // fclose(data_file);
 
     for (int i = 0; i < 11; i++)
     {

@@ -15,7 +15,7 @@ void sort(const std::filesystem::path& file_path, bool verbose)
     RunInfo run_info;
     unsigned long long int rw;
     
-    if (verbose) file_handler.print();
+    if (verbose) { file_handler.print(); printf("\n"); }
 
     int sort_phases = create_runs(file_handler, buffers, run_info, verbose);
     int merge_phases = merge(file_handler, buffers, run_info, rw, verbose);
