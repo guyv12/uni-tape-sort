@@ -59,6 +59,8 @@ void test_merge()
 
 void test_sort()
 {
+    srand(1);
+
     const char *const file_path = "database-file";
 
     FILE *data_file = fopen("sort.dat", "a");
