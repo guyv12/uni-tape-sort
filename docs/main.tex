@@ -1,0 +1,204 @@
+\documentclass{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{float}
+\usepackage[top=1.5cm, bottom=1.5cm]{geometry}
+\setlength{\parskip}{1em}
+\setlength{\parindent}{0pt}
+\captionsetup{justification=centering}
+
+\title{Sortowanie plików sekwencyjnych metodą dużych buforów}
+\author{Igor Sitko-Bajorski}
+\date{Listopad 2025}
+
+\begin{document}
+
+\maketitle
+
+\section{Opis metody}
+Sortowanie plików sekwencyjnych metodą dużych buforów zakłada ograniczoną ilość pamięci operacyjnej w stosunku do rozmiaru pliku. W celu dostępu do danych w pamięci RAM wykorzystujemy zdefiniowaną ilość buforów, \textbf{oznaczoną \textit{n}}, o określonej pojemnośći (w tym przypadku, określonym rozmiarem strony dyskowej). Ilość rekordów mieszczących się w jednym buforze nazywamy czynnikiem blokującym, oraz \textbf{oznaczamy \textit{b}}, gdzie:
+\[
+b = \text{(Rozmiar Strony Dyskowej ) / (Rozmiar Rekordu)}
+\]
+
+Sortowanie można rozdzielić na dwa kroki:
+\begin{enumerate}
+    \item Etap tworzenia serii
+    \item Etap złączenia serii
+\end{enumerate}
+
+Etap tworzenia serii polega na:
+\begin{enumerate}
+    \item wczytaniu do buforów zawartości pliku,
+    \item posortowania \textit{n} buforów algorytmem sortowania (w tym przypadku QuickSort),
+    \item nadpisania wczytanych danych posortowanymi. Te czynności są powtarzane do momentu osiągnięcia końca pliku.
+\end{enumerate}
+
+Etap złączenia serii polega na: 
+\begin{enumerate}
+    \item stworzeniu tymczasowego pliku wyjściowego,
+    \item rozdzieleniu buforów: \textit{n - 1} pierwszych buforów poświęcamy na dane wejściowe, ostatni na zapis wyników złączenia,
+    \item wczytaniu do buforów początków posortowanych serii,
+    \item utworzenie minimalnego kopca z pierwszych elementów w buforach,
+    \item ekstrakcję minimum, i jej zapis do bufora wyjściowego,
+    \item dodanie do kopca kolejnej wartości z bufora który zawierał poprzednie minimum.
+\end{enumerate}
+
+W przypadku wyczerpania danych w buforze wejściowym - wczytujemy do niego kolejną stronę serii.
+
+W przypadku osiągnięcia końca serii bufora wejściowego nie dodajemy kolejnej wartości do kopca.
+
+W przypadku zapełnienia danych w buforze wyjściowym - zapisujemy jego zawartość do pliku wyjściowego 
+
+Kroki 5 i 6 są powtarzane do momentu opróżnienia kopca.
+
+Te czynności są powtarzane do momentu osiągnięcia końca pliku. Pomiędzy wywołaniami zamieniamy rolami plik wejściowy i wyjściowy.
+
+\section{Specyfikacja formatu pliku}
+\subsection{Specyfikacja rekordu}
+Pojedynczy rekord, opisuje obiekt na podstawie dwóch wartości masy oraz prędkości. Rekord składał się więc z dwóch wartości zmiennoprzecinkowych w formacie 64bitowym - \textit{double}. Pojedynczy rekord opisuje obiekt na podstawie masy oraz prędkości, 
+a jego wartość wyznaczana jest na podstawie energii kinetycznej:
+\[
+E_k = \frac{mv^2}{2}.
+\]
+
+\subsection{Specyfikacja pliku}
+Sortowany plik składał się z zapisanych binarnie, upakowanych (bez separatora), rekordów o stałej długości.
+\[
+mvmv...mv
+\]
+
+Na każdy rekord przypada wówczas 16B = 8B (masa) + 8B (prędkość). Podczas odczytu, mieszczące się na stronie pełne rekordy zostają wpisane do bufora wyjściowego jako surowe bajty, które w celu odczytania należy skonwertować na wartości \textit{double}.
+
+\section{Prezentacja wyników działania programu}
+W formie podstawowej program wyświetla dwie informacje o procesie sortowania, liczbę faz etapu sortowania i etapu złączenia, oraz ilość operacji dyskowych.
+
+W formie jawnej (verbose) wyświetla dodatkowo zawartość pliku (wartości rekordów) przed i po posortowaniu, a także zawartość pliku po każdej z faz.
+
+W trakcie sortowania po każdym przejściu pętli w funkcjach \textbf{create\_runs()} oraz \textbf{merge()} zwiększany jest licznik faz danej operacji. Klasa \textbf{FileHandler} posiada wewnętrzny licznik operacji odczytu i zapisu na dysk, a także metodę \textbf{print()}, pozwalającą na odczyt wartości rekordów w pliku.
+
+\newpage
+\section{Eksperyment}
+\subsection{Sposób przeprowadzenia eksperymentu}
+Przyjęto wartości stałych:
+\[
+\begin{aligned}
+R &= 16\\
+b &= 32\\
+n &= 10
+\end{aligned}
+\]
+
+Program przed rozpoczęciem sortowania generował rozmiar pliku na podstawie wzoru:
+\[
+\text{N} = it \cdot 100{,}000 + \left( \text{rand()} \bmod 5{,}000 \right),
+\]
+gdzie \textit{it} określa numer iteracji eksperymentu, \(0 \le it \le 10\).
+
+
+Po określeniu rozmiaru, generował plik wejściowy o zadanej wielkości i zapisywał rozmiar (N) do pliku opisującego eksperyment.
+Następnie zapisywał czas startu wywołania funkcji \textbf{sort()} i uruchamiał proces sortowania. W tym kroku, program dopisywał do pliku ilość wykonanych w tym procesie operacji dyskowych, będących sumą operacji r/w na sortowanym pliku i na pliku tymczasowym etapu złączenia. Dopisywał również ilość faz poszczególnych etapów. Po tym zapisywał czas końca wywołania, i dopisywał wartość do pliku opisującego eksperyment.
+
+
+\subsection{Wyniki eksperymentu}
+\subsubsection{Ilość operacji r/w}
+Etap sortowania zajmie \( \frac{N}{b} \) operacji odczytu danych z pliku i tyle samo operacji zapisu - musimy 1 raz wczytać i zapisać cały plik.
+
+Każda iteracja etapu złączenia również zajmie \( \frac{N}{b} \) operacji odczytu i zapisu danych z/do pliku.
+
+Po pierwszej iteracji rozmiar serii będzie wynosił \( n \cdot b \). Po drugiej będzie to już \( n^2 \cdot b \) - złączamy (n - 1) serii, ale n >> 1, więc można założyć że \( n \approx n-1 \). Z tego wynika że tych etapów będzie ok. 
+\[ 
+    \lceil log_n(\frac{N}{nb}) \rceil = \lceil log_n(\frac{N}{b}) \rceil - 1
+\]
+
+Liczbę operacji dyskowych w zależności od rozmiaru pliku można oszacować więc wzorem:
+\[
+    \frac{2N}{b} \cdot log_n(\frac{2N}{b}) = \frac{2N}{b \cdot log_2(n)} \cdot log_2(\frac{N}{b})
+\]
+
+Dokładny wzór:
+\[
+    \lceil \frac{2N}{b} \rceil \cdot (1 +  \lceil log_{n - 1}(\frac{N}{nb}) \rceil)
+\]
+
+\newpage
+Różnice między wartością aproksymowaną 1 wzorem, a rzeczywistą pokazuje poniższy wykres.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\linewidth]{rw.png}
+    \caption{Rzeczywiste i aproksymowane ilości operacji dyskowych. 
+    Na osi \textit{X} rozmiar pliku~$N$, na osi \textit{Y} liczba operacji dyskowych}
+    \label{fig:sort_operations}
+\end{figure}
+
+Na wykresie widać że zgodnie z przewidywaniem wykres rośnie prawie liniowo. Zaobserwowane ilości operacji dyskowych dla mniejszych rozmiarów pokrywają się, natomiast zwiększając rozmiar pliku, od ok. 100.000 rekordów występują rozbieżności.
+
+Różnice między wartością aproksymowaną 2 wzorem, a rzeczywistą pokazuje poniższy wykres.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\linewidth]{rw2.png}
+    \caption{Rzeczywiste i aproksymowane ilości operacji dyskowych. 
+    Na osi \textit{X} rozmiar pliku~$N$, na osi \textit{Y} liczba operacji dyskowych}
+    \label{fig:sort_operations}
+\end{figure}
+
+Po dodaniu zaokrągleń i dokładnego logarytmu o podst. n - 1 do drugiej części, wzór na aproksymację dokładnie pokrywa się z obserwacjami.
+
+\subsubsection{Ilość faz}
+Ilości faz sortowania, to kolejna metryka którą przedstawia poniższy wykres.
+
+\begin{figure}[H]
+    \centering
+
+    \begin{minipage}{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{s_phases.png}
+        \caption{Fazy sortowania w zależności od rozmiaru pliku}
+        \label{fig:sort_phases}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{m_phases.png}
+        \caption{Fazy złączenia w zależności od rozmiaru pliku}
+        \label{fig:merge_phases}
+    \end{minipage}
+\end{figure}
+
+Ilość faz sortowania zwiększa się liniowo wraz z pojemnością pliku co zgadza się z teorią wzoru.
+
+Ilość faz złączenia zgadza się z wartością teorytyczną.
+
+\subsubsection{Czas wykonania}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\linewidth]{time.png}
+    \caption{Rzeczywiste i aproksymowane ilości operacji dyskowych. 
+    Na osi \textit{X} rozmiar pliku na osi \textit{Y} czas wykonania}
+    \label{fig:exec_time}
+\end{figure}
+
+Czas wykonania rośnie liniowo w zależności od rozmiaru pliku.
+
+\subsection{Wnioski}
+\subsubsection{Ilość operacji r/w}
+Wzór bez zaokrągleń generuje większe rozbieżności dla operacji r/w, ponieważ założenie n >> 1 nie jest spełnione. Dla n = 10, 1 to już 10\% odchylenie. Ponadto błędy nawarstwiają się w przypadku zmiany podstawy logarytmu na dwójkowy.
+Wykres posiada również załamanie spowodowane przeskokiem z ok. 5,000 próbek na ok. 100,000.
+
+Stosując za to dokładny wzór jesteśmy w stanie, za każdym razem dokładnie określić ilość operacji dyskowych zgodną z rzeczywistością, w każdym punkcie wynik jest zgodny.
+
+\subsubsection{Ilość faz}
+Ilość faz sortowania wzrasta liniowo z podaną zależnością. Ilość faz jest równa \( \frac{N}{nb} \), bo w każdym kroku odczytamy \(nb\) danych (pojemność jednego bufora razy ilość buforów).
+
+Ilość faz złączenia wzrasta logarytmicznie, zgodnie z podaną zależnością \( \lceil log_{n-1}(\frac{N}{nb}) \rceil \), a obserwacje zgadzają się ze wskazaniem teorytycznym.
+
+\subsubsection{Czas wykonania}
+Czas wykonania algorytmu zależy głównie od ilości operacji dyskowych, ponieważ to one są obarczone największym opóźnieniem. Pokrywa się to z danymi na wykresie, który wzrasta liniowo podobnie do ilości operacji odczytu i zapisu.
+
+\end{document}

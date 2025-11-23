@@ -67,7 +67,7 @@ def plot_phases(fsizes: np.ndarray, s_phases: np.ndarray, m_phases: np.ndarray) 
 
     plt.figure(figsize=(10, 6))
 
-    plt.plot(fsizes, m_phases, color='b', label='merge phases')
+    plt.step(fsizes, m_phases, color='b', label='merge phases')
     plt.xlabel("File size [records]", fontsize=12)
     plt.ylabel("Merge Phases", fontsize=12)
     plt.title("Merge phases vs. File Size", fontsize=14)
