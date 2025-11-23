@@ -20,7 +20,7 @@
 \maketitle
 
 \section{Opis metody}
-Sortowanie plików sekwencyjnych metodą dużych buforów zakłada ograniczoną ilość pamięci operacyjnej w stosunku do rozmiaru pliku. W celu dostępu do danych w pamięci RAM wykorzystujemy zdefiniowaną ilość buforów, \textbf{oznaczoną \textit{n}}, o określonej pojemnośći (w tym przypadku, określonym rozmiarem strony dyskowej). Ilość rekordów mieszczących się w jednym buforze nazywamy czynnikiem blokującym, oraz \textbf{oznaczamy \textit{b}}, gdzie:
+Sortowanie plików sekwencyjnych metodą dużych buforów zakłada ograniczoną ilość pamięci operacyjnej w stosunku do rozmiaru pliku. W celu dostępu do danych w pamięci RAM wykorzystujemy zdefiniowaną ilość buforów, \textbf{oznaczoną \textit{n}}, o określonej pojemności (w tym przypadku, określonym rozmiarem strony dyskowej). Ilość rekordów mieszczących się w jednym buforze nazywamy czynnikiem blokującym, oraz \textbf{oznaczamy \textit{b}}, gdzie:
 \[
 b = \text{(Rozmiar Strony Dyskowej ) / (Rozmiar Rekordu)}
 \]
@@ -34,17 +34,17 @@ Sortowanie można rozdzielić na dwa kroki:
 Etap tworzenia serii polega na:
 \begin{enumerate}
     \item wczytaniu do buforów zawartości pliku,
-    \item posortowania \textit{n} buforów algorytmem sortowania (w tym przypadku QuickSort),
+    \item posortowaniu \(n \cdot b\) rekordów w buforach, algorytmem sortowania wydajnym pamięciowo (w tym przypadku QuickSort),
     \item nadpisania wczytanych danych posortowanymi. Te czynności są powtarzane do momentu osiągnięcia końca pliku.
 \end{enumerate}
 
 Etap złączenia serii polega na: 
 \begin{enumerate}
     \item stworzeniu tymczasowego pliku wyjściowego,
-    \item rozdzieleniu buforów: \textit{n - 1} pierwszych buforów poświęcamy na dane wejściowe, ostatni na zapis wyników złączenia,
+    \item rozdzieleniu buforów: \textit{n - 1} pierwszych buforów przeznaczamy na dane wejściowe, ostatni na zapis wyników złączenia,
     \item wczytaniu do buforów początków posortowanych serii,
     \item utworzenie minimalnego kopca z pierwszych elementów w buforach,
-    \item ekstrakcję minimum, i jej zapis do bufora wyjściowego,
+    \item ekstrakcję minimum, i jego zapis do bufora wyjściowego,
     \item dodanie do kopca kolejnej wartości z bufora który zawierał poprzednie minimum.
 \end{enumerate}
 
@@ -61,13 +61,13 @@ Te czynności są powtarzane do momentu osiągnięcia końca pliku. Pomiędzy wy
 \section{Specyfikacja formatu pliku}
 \subsection{Specyfikacja rekordu}
 Pojedynczy rekord, opisuje obiekt na podstawie dwóch wartości masy oraz prędkości. Rekord składał się więc z dwóch wartości zmiennoprzecinkowych w formacie 64bitowym - \textit{double}. Pojedynczy rekord opisuje obiekt na podstawie masy oraz prędkości, 
-a jego wartość wyznaczana jest na podstawie energii kinetycznej:
+a jego wartość jest wyznaczana na podstawie energii kinetycznej:
 \[
 E_k = \frac{mv^2}{2}.
 \]
 
 \subsection{Specyfikacja pliku}
-Sortowany plik składał się z zapisanych binarnie, upakowanych (bez separatora), rekordów o stałej długości.
+Sortowany plik składał się z zapisanych binarnie, upakowanych bez separatora, rekordów o stałej długości.
 \[
 mvmv...mv
 \]
@@ -87,7 +87,7 @@ W trakcie sortowania po każdym przejściu pętli w funkcjach \textbf{create\_ru
 Przyjęto wartości stałych:
 \[
 \begin{aligned}
-R &= 16\\
+R &= 16\text{B}\\
 b &= 32\\
 n &= 10
 \end{aligned}
@@ -101,7 +101,7 @@ gdzie \textit{it} określa numer iteracji eksperymentu, \(0 \le it \le 10\).
 
 
 Po określeniu rozmiaru, generował plik wejściowy o zadanej wielkości i zapisywał rozmiar (N) do pliku opisującego eksperyment.
-Następnie zapisywał czas startu wywołania funkcji \textbf{sort()} i uruchamiał proces sortowania. W tym kroku, program dopisywał do pliku ilość wykonanych w tym procesie operacji dyskowych, będących sumą operacji r/w na sortowanym pliku i na pliku tymczasowym etapu złączenia. Dopisywał również ilość faz poszczególnych etapów. Po tym zapisywał czas końca wywołania, i dopisywał wartość do pliku opisującego eksperyment.
+Następnie zapisywał czas startu wywołania funkcji \textbf{sort()} i uruchamiał proces sortowania. W tym kroku, program dopisywał do pliku ilość wykonanych w tym procesie operacji dyskowych, będących sumą operacji r/w na sortowanym pliku i na pliku tymczasowym etapu złączenia. Dopisywał również ilość faz poszczególnych etapów. Po tym zapisywał czas końca wywołania, i dopisywał czas trwania wywołania do pliku opisującego eksperyment.
 
 
 \subsection{Wyniki eksperymentu}
