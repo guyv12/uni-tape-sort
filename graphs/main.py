@@ -27,13 +27,13 @@ def load_arrays(file_name: str) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.
         print(f"Error opening file: {e}")
         return np.array([], dtype=int), np.array([], dtype=int), np.array([], dtype=int), np.array([], dtype=int), np.array([], dtype=float)
 
-    
 
 def approx_ops(n: int, b: int, fsizes: np.ndarray) -> np.ndarray:
     return np.asarray([(2 * N / (b * math.log2(n))) * math.log2(N / b) for N in fsizes])
 
 def approx_ops2(n: int, b: int, fsizes: np.ndarray) -> np.ndarray:
     return np.asarray([2 * math.ceil(N / b) * (1 + math.ceil(math.log((N / (n * b)), n - 1))) for N in fsizes])
+
 
 def plot_rw(fsizes: np.ndarray, operations: np.ndarray, approx: np.ndarray) -> None:
     plt.figure(figsize=(10, 6))

@@ -15,14 +15,14 @@ void sort(const std::filesystem::path& file_path, bool verbose)
     RunInfo run_info;
     unsigned long long int rw;
     
-    if (verbose) { file_handler.print(); printf("\n"); }
+    if (verbose) { printf("before sort\n"); file_handler.print(); printf("\n"); }
 
     int sort_phases = create_runs(file_handler, buffers, run_info, verbose);
     if (verbose) printf("\n");
     int merge_phases = merge(file_handler, buffers, run_info, rw, verbose);
     if (verbose) printf("\n");
     
-    if (verbose) file_handler.print();
+    if (verbose) { printf("after sort\n"); file_handler.print(); printf("\n"); }
 
     printf("\nsort: %d | merge: %d\n", sort_phases, merge_phases);
     printf("r/w operations: %llu\n\n\n", rw);
@@ -60,7 +60,7 @@ int create_runs(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buf
         for(size_t i = 0; i < blks_to_read; i++)
             file_handler.write_block(buffers[i].array(), cur_blk + i, buffers[i].size());
 
-        if (verbose) { file_handler.print(); printf("\n"); }
+        if (verbose) { printf("after sort phase %d\n", phases); file_handler.print(); printf("\n"); }
 
         cur_blk += blks_to_read;
         run_info.run_count++;
@@ -86,7 +86,7 @@ int merge(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buffers, 
         out.reset();
         merge_runs(in, out, buffers, run_info);
 
-        if (verbose) out.print();
+        if (verbose) { printf("after merge phase %d\n", phases); out.print(); printf("\n"); }
         
         toggle = !toggle;
         phases++;
