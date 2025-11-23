@@ -1,5 +1,6 @@
 #include "cli.hpp"
 #include "sort.hpp"
+#include <chrono>
 
 void test_quicksort();
 void test_merge();
@@ -9,7 +10,7 @@ void test_sort();
 int main(void)
 {
     cli();
-
+    // test_sort();
     return 0;
 }
 
@@ -60,21 +61,30 @@ void test_sort()
 {
     const char *const file_path = "database-file";
 
-    // FILE *data_file = fopen("sort.dat", "a");
-    // fprintf(data_file, "%d %d\n", BLOCKING_FACTOR, BUFFER_COUNT);
-    // fclose(data_file);
+    FILE *data_file = fopen("sort.dat", "a");
+    fprintf(data_file, "%d %d\n", BLOCKING_FACTOR, BUFFER_COUNT);
+    fclose(data_file);
 
     for (int i = 0; i < 11; i++)
     {
         size_t file_size = i * 100'000 + rand() % 5'000;
         printf("file size: %d\n", static_cast<int>(file_size));
 
-        // FILE *data_file = fopen("sort.dat", "a");
-        // fprintf(data_file, "%d", file_size);
-        // fclose(data_file);
+        FILE *data_file = fopen("sort.dat", "a");
+        fprintf(data_file, "%d", file_size);
+        fclose(data_file);
 
         generate_db(file_path, file_size);
+
+        auto t1 = std::chrono::high_resolution_clock::now();
         sort(file_path);
+        auto t2 = std::chrono::high_resolution_clock::now();
+        
+        std::chrono::duration<double, std::milli> ms_double = t2 - t1;
+        data_file = fopen("sort.dat", "a");
+        fprintf(data_file, " %lf\n", ms_double.count());
+        fclose(data_file);
+
         check_if_sorted(file_path);
 
         std::filesystem::remove(file_path);

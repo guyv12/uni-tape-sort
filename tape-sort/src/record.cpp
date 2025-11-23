@@ -3,6 +3,7 @@
 #include <cmath>
 #include <random>
 #include <iostream>
+#include <fstream>
 
 Record::Record()
 {
@@ -78,4 +79,34 @@ void input_db(const std::filesystem::path& file_name)
 
     fclose(db);
     printf("database saved to %s\n", file_name.c_str());
+}
+
+void load_db(const std::filesystem::path& in_name, const std::filesystem::path& out_name)
+{
+    std::ifstream in(in_name);
+    FILE *out = fopen(out_name.c_str(), "wb");
+    if (!in.is_open() || !out) { perror("Record: Can't open db file"); return; }
+
+    printf("Input record data in fp format divided by a whitespace (eg. 0.255 3.14)\nExit: q\n\n");
+
+    bool quit = false;
+    while(!quit)
+    {
+        std::string input;
+        std::getline(in, input);
+
+        if (input == "q" || input == "Q") { quit = true; break; }
+
+        double m, v;
+        if (sscanf(input.c_str(), "%lf %lf", &m, &v) == 2)
+        {
+            fwrite(&m, sizeof(m), 1, out);
+            fwrite(&v, sizeof(v), 1, out);
+        }
+        else
+            printf("\nInvalid Input\n");
+    }
+
+    fclose(out);
+    printf("database saved to %s\n", out_name.c_str());
 }

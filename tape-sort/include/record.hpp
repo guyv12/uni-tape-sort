@@ -30,5 +30,6 @@ class Record
 
 void generate_db(const std::filesystem::path& filename, long long int records);
 void input_db(const std::filesystem::path& file_name);
+void load_db(const std::filesystem::path& in_name, const std::filesystem::path& out_name);
 
 #endif //record_hpp

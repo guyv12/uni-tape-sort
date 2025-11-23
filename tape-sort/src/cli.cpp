@@ -7,6 +7,7 @@ void c_launch_sort();
 void c_launch_sort_v();
 void c_gen_db();
 void c_in_db();
+void c_ld_db();
 void c_print();
 
 void cli()
@@ -21,8 +22,9 @@ void cli()
         << "2) Launch Sort verbose\n"
         << "3) Generate DB file\n"
         << "4) Input DB file\n"
-        << "5) Print file\n"
-        << "6) Exit\n\n"
+        << "5) Load DB file\n"
+        << "6) Print file\n"
+        << "7) Exit\n\n"
         << "Choose an option: ";
 
         int input = 0;
@@ -34,8 +36,9 @@ void cli()
             case 2: c_launch_sort_v(); break;
             case 3: c_gen_db(); break;
             case 4: c_in_db(); break;
-            case 5: c_print(); break;
-            case 6: running = false; break;
+            case 5: c_ld_db(); break;
+            case 6: c_print(); break;
+            case 7: running = false; break;
 
             default:
                 std::cout << "Invalid option. Try again.\n";
@@ -83,6 +86,18 @@ void c_in_db()
     std::cin >> file_name;
 
     input_db(file_name);
+}
+
+void c_ld_db()
+{
+    std::string in_name, out_name;
+
+    std::cout << "\nInput input file name: ";
+    std::cin >> in_name;
+    std::cout << "\nInput output file name: ";
+    std::cin >> out_name;
+
+    load_db(in_name, out_name);
 }
 
 void c_print()

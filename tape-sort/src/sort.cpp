@@ -18,15 +18,17 @@ void sort(const std::filesystem::path& file_path, bool verbose)
     if (verbose) { file_handler.print(); printf("\n"); }
 
     int sort_phases = create_runs(file_handler, buffers, run_info, verbose);
+    if (verbose) printf("\n");
     int merge_phases = merge(file_handler, buffers, run_info, rw, verbose);
-
+    if (verbose) printf("\n");
+    
     if (verbose) file_handler.print();
 
     printf("\nsort: %d | merge: %d\n", sort_phases, merge_phases);
     printf("r/w operations: %llu\n\n\n", rw);
 
     // FILE *data_file = fopen("sort.dat", "a");
-    // fprintf(data_file, " %llu\n", rw);
+    // fprintf(data_file, " %llu %d %d", rw, sort_phases, merge_phases);
     // fclose(data_file);
 }
 
@@ -45,7 +47,7 @@ int create_runs(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buf
         // read data into the buffers
         for (size_t i = 0; i < blks_to_read; i++)
         {
-            size_t bytes = file_handler.read_block(buffers[i].array(), cur_blk + i); // <== here should be some check how many records are inside?
+            size_t bytes = file_handler.read_block(buffers[i].array(), cur_blk + i); // <== here check how many records are inside
             buffers[i].set_size(bytes);
         }
 
@@ -58,7 +60,7 @@ int create_runs(FileHandler& file_handler, std::array<Buffer, BUFFER_COUNT>& buf
         for(size_t i = 0; i < blks_to_read; i++)
             file_handler.write_block(buffers[i].array(), cur_blk + i, buffers[i].size());
 
-        if (verbose) file_handler.print();
+        if (verbose) { file_handler.print(); printf("\n"); }
 
         cur_blk += blks_to_read;
         run_info.run_count++;
